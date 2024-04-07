@@ -7,7 +7,12 @@ import datetime
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
-from aerobulk.flux import noskin 
+# For when we don't have aerobulk installed then applybulk can't be used 
+try:
+    from aerobulk.flux import noskin 
+except ImportError:
+    pass
+
 
 def load_psd (filepath):
     ''' Load the psd data and compute bulk '''
@@ -76,6 +81,7 @@ def applybulk(ds, algo='coare3p6'):
 # If we need to compute relative humidity
 # from utils import rh
 
+# This can be obsolete now because we have a better way
 def assemble_var (ds, choice='U_Tdiff_rh'):
     ''' Here ds has to have variable names as ['U','tsea','tair','qair','rh','taucx','hsc','hlc'] '''
     # U-Ta-To-q_absolute
