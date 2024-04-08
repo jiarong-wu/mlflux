@@ -128,26 +128,27 @@ def data_split_psd(ds, split, PLOT=True, XVIS='time'):
     psd_test = ds.where(ds.pcode.isin(split[2]), drop=True)
     print('Testing samples: %g' %len(psd_test.U.values))
 
-    fig = plt.figure(figsize=[6,4], dpi=200)
-    for i in range(3):
-        for pcode in split[i]:
-            if XVIS == 'time':
-                plt.plot(ds.where(ds.pcode==pcode).time,
-                         ds.where(ds.pcode==pcode).pcode, c=colors[i]) 
-                plt.xlim([datetime.date(1996,1,1), datetime.date(2020,1,1)])
-                plt.xlabel('Year')
-            if XVIS == 'samples':
-                plt.plot(ds.where(ds.pcode==pcode).pcode, c=colors[i])
-                plt.xlim([0,10000]); plt.xlabel('Samples')    
-     
-    plt.yticks([77, 69, 83, 78, 87, 72, 71, 68, 67, 73])
-    plt.ylabel('Cruise code')
-    plt.annotate('Training %g' %len(psd_train.U.values), 
-                 xy=(0.01,0.95), xycoords='axes fraction', color=colors[0])
-    plt.annotate('Validating %g' %len(psd_valid.U.values), 
-                 xy=(0.01,0.9), xycoords='axes fraction', color=colors[1])
-    plt.annotate('Testing %g' %len(psd_test.U.values), 
-                 xy=(0.01,0.85), xycoords='axes fraction', color=colors[2])
-    plt.show()
+    if PLOT:
+        fig = plt.figure(figsize=[6,4], dpi=200) 
+        for i in range(3):
+            for pcode in split[i]:
+                if XVIS == 'time':
+                    plt.plot(ds.where(ds.pcode==pcode).time,
+                            ds.where(ds.pcode==pcode).pcode, c=colors[i]) 
+                    plt.xlim([datetime.date(1996,1,1), datetime.date(2020,1,1)])
+                    plt.xlabel('Year')
+                if XVIS == 'samples':
+                    plt.plot(ds.where(ds.pcode==pcode).pcode, c=colors[i])
+                    plt.xlim([0,10000]); plt.xlabel('Samples')    
+        
+        plt.yticks([77, 69, 83, 78, 87, 72, 71, 68, 67, 73])
+        plt.ylabel('Cruise code')
+        plt.annotate('Training %g' %len(psd_train.U.values), 
+                    xy=(0.01,0.95), xycoords='axes fraction', color=colors[0])
+        plt.annotate('Validating %g' %len(psd_valid.U.values), 
+                    xy=(0.01,0.9), xycoords='axes fraction', color=colors[1])
+        plt.annotate('Testing %g' %len(psd_test.U.values), 
+                    xy=(0.01,0.85), xycoords='axes fraction', color=colors[2])
+        plt.show()
 
     return (psd_train, psd_valid, psd_test)

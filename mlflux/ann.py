@@ -210,3 +210,4 @@ def train (mean_func, var_func, training_data, validating_data, evaluate_func,
         print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {LLLoss:.8f}")
         
     return log
+

@@ -136,6 +136,7 @@ class FluxANNs(predictor):
 class FluxBulkANN(predictor):
     ''' Define a predictor that has bulk formula as the deterministic model
         and estimate variance with ANN.
+        `self.fit` function calls `train` with FIXMEAN=True because the mean_func is not learnable.
         Required parameters:
             bulk_algorithm: the algorithm used (COARE3.6 as default)
             var_ann_para: dictionaries containing the following parameters for ANN 
@@ -153,7 +154,7 @@ class FluxBulkANN(predictor):
             raise ValueError('Need to define a bulk algorithm as the deterministic model!')
         if not hasattr(self, "var_ann_para"):
             raise ValueError('Need to define ANN parameters for var!')
-        self.mean_func = ...
+        self.mean_func = lambda X : torch.zeros(X.shape[0],self.var_ann_para['n_out']) 
         self.var_func = ANN(**self.var_ann_para)
 
     def summary(self):
@@ -218,7 +219,7 @@ class FluxBulkANN(predictor):
         
         t_start = time()
         log = train (self.mean_func, self.var_func, training_data_cp, validating_data_cp, 
-                     self.mse_r2_scaled, **training_paras, FIXMEAN=False)
+                     self.mse_r2_scaled, **training_paras, FIXMEAN=True)
         print(f'training took {time() - t_start:.2f} seconds')
         return (log, training_data_cp)
     
