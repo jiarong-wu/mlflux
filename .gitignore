@@ -2,6 +2,7 @@
 *.mp4
 *.png
 .DS_Store
+*.pyc
 data/
 others/
-*.pyc
+saved_model/

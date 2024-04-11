@@ -65,8 +65,10 @@ class RealFluxDataset(Dataset):
         self.X = torch.tensor(np.hstack([ds[key].values.reshape(-1,1) for key in input_keys]).astype('float32'))
         self.Y = torch.tensor(np.hstack([ds[key].values.reshape(-1,1) for key in output_keys]).astype('float32'))
             
-        # Weights according to weightfunc of choice
-        self.W = torch.tensor(weightfunc(self.X).astype('float32'))
+        # Weights according to weightfunc of choice, weight needs to match output dimension
+        weights = weightfunc(self.X[:,0]).reshape(-1,1)
+        weights = np.repeat(weights, len(output_keys), axis=1)
+        self.W = torch.tensor(weights.astype('float32'))
         
     def __len__(self):
         return self.X.shape[0]
