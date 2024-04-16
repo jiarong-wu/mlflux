@@ -58,12 +58,13 @@ def sample_weights(x):
 
 ''' Construct a dataset from real measurements '''
 class RealFluxDataset(Dataset):
-    def __init__(self, ds, input_keys=['U','tsea','tair','rh'], output_keys=['taucx','hsc','hlc'], 
-                 weightfunc=sample_weights):
+    def __init__(self, ds, input_keys=['U','tsea','tair','rh'], output_keys=['taucx','taucy','hsc','hlc'], 
+                 bulk_keys=['taubx','tauby','hsb','hlb'], weightfunc=sample_weights):
         
         # Assemble input and output features
         self.X = torch.tensor(np.hstack([ds[key].values.reshape(-1,1) for key in input_keys]).astype('float32'))
         self.Y = torch.tensor(np.hstack([ds[key].values.reshape(-1,1) for key in output_keys]).astype('float32'))
+        # Assemble 
             
         # Weights according to weightfunc of choice, weight needs to match output dimension
         weights = weightfunc(self.X[:,0]).reshape(-1,1)

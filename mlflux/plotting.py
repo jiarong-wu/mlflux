@@ -2,7 +2,7 @@
 
 from matplotlib import pyplot as plt
 import numpy as np
-from utils import mse_r2
+from mlflux.utils import mse_r2
 
 def comparison(ds, ax, xplot='U', yplot='tau'):
     if xplot == 'Tdiff':
