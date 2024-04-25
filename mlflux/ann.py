@@ -40,6 +40,31 @@ class ANN(nn.Module):
     def loss_mse(self, x, ytrue):
         return {'loss': nn.MSELoss()(self.forward(x), ytrue)}
     
+''' Trying a different architecture with fixed weights in first layer for temperatures '''
+from mlflux.ann import ANN
+class ANNdiff(ANN):
+    def __init__(self, n_in=4, n_out=4, hidden_channels=[24, 24], degree=None):
+        super().__init__(n_in, n_out, hidden_channels, degree)
+        self.degree = degree # But not necessary for this application
+    
+        layers = []
+        if n_in != 4:
+            raise ValueError('Check the input feature number! This class so far only supports U, To, Ta, rh as inputs!')
+        fixed_layer = nn.Linear(n_in, n_in+1, bias=False)
+        weights = torch.tensor(np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1],[0,1,-1,0]]).astype('float32')) # The additional variable takes the difference of the temperature
+        fixed_layer.weight = nn.Parameter(weights,requires_grad=False)
+        layers.append(fixed_layer) # Only works when inputs are U-Tsea-Tair
+        layers.append(nn.Linear(n_in+1, hidden_channels[0]))
+        layers.append(nn.Sigmoid())
+        
+        for i in range(len(hidden_channels)-1):
+            layers.append(nn.Linear(hidden_channels[i], hidden_channels[i+1]))
+            layers.append(nn.Sigmoid())
+            
+        layers.append(nn.Linear(hidden_channels[-1], n_out))
+        
+        self.layers = nn.Sequential(*layers)
+    
     
 ''' The function that specifies sample weights. There can be different candidates.
     Need to be a ufunc that applies to numpy array. 
@@ -61,12 +86,12 @@ class RealFluxDataset(Dataset):
     def __init__(self, ds, input_keys=['U','tsea','tair','rh'], output_keys=['taucx','taucy','hsc','hlc'], 
                  bulk_keys=['taubx','tauby','hsb','hlb'], weightfunc=sample_weights):
         
-        # Assemble input and output features
+        ###### Assemble input and output features ######
         self.X = torch.tensor(np.hstack([ds[key].values.reshape(-1,1) for key in input_keys]).astype('float32'))
         self.Y = torch.tensor(np.hstack([ds[key].values.reshape(-1,1) for key in output_keys]).astype('float32'))
-        # Assemble 
-            
-        # Weights according to weightfunc of choice, weight needs to match output dimension
+        ###### Assemble bulk ######
+        self.Bulk = torch.tensor(np.hstack([ds[key].values.reshape(-1,1) for key in bulk_keys]).astype('float32'))    
+        ###### Weights according to weightfunc of choice, weight needs to match output dimension ######
         weights = weightfunc(self.X[:,0]).reshape(-1,1)
         weights = np.repeat(weights, len(output_keys), axis=1)
         self.W = torch.tensor(weights.astype('float32'))
@@ -159,7 +184,7 @@ class SynFluxDataset1D(Dataset):
 
 
 def train (mean_func, var_func, training_data, validating_data, evaluate_func,
-           batchsize=100, num_epochs=100, lr=5e-3, gamma=0.2, FIXMEAN=True):
+           batchsize=100, num_epochs=100, lr=5e-3, gamma=0.2, FIXMEAN=True, VERBOSE=True):
     
     # Put the training data into dataloader
     dataloader = DataLoader(training_data, batch_size=batchsize, shuffle=True)
@@ -210,7 +235,8 @@ def train (mean_func, var_func, training_data, validating_data, evaluate_func,
         # log['var'].append(var.detach())
         # log['mean'].append(mean.detach())
         
-        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {LLLoss:.8f}")
+        if VERBOSE:
+            print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {LLLoss:.8f}")    
         
     return log
 

@@ -1,7 +1,5 @@
 import xarray as xr
-import numpy as np
-from matplotlib import pyplot as plt
-from mlflux.datafunc import load_psd, load_atomic, assemble_var, data_split_psd
+from mlflux.datafunc import load_psd, load_atomic
 
 print('Loading PSD data and computing bulk!')
 ds_psd = load_psd('../data/PSD/fluxes_all_cruises_compilation.nc') # This load_psd function includes applybulk

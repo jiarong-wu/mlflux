@@ -32,4 +32,7 @@ What each file does:
 
 
 
-
+`ANN-full` work flow
+* Load data and assemble using RealFluxDataset from ann.py (weights function can be defined and passed-in but for now hard-coded to only depend on wind speed).
+* Initialize a model based on the number of input and output features.
+* Train and select and save.

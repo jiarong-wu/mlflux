@@ -3,6 +3,55 @@
 from matplotlib import pyplot as plt
 import numpy as np
 from mlflux.utils import mse_r2
+import torch
+
+''' Inputs to this plotting functions are torch tensors. '''
+def plot_feature(ax, X, Y_truth, Y_pred, LEGEND=True):
+    mse = torch.mean((Y_truth-Y_pred)**2)
+    r2 = 1 - mse/torch.var(Y_truth)
+    ax.plot(X,Y_truth, '.', markersize=0.5, label='Measurements')
+    ax.plot(X,Y_pred, '.', markersize=0.5, label='Prediction (of mean) \nr2=%.4f, mse=%.4f' %(r2, mse))
+    if LEGEND:
+        ax.legend(fancybox=False)
+
+''' Inputs to these plotting functions is a dataset instance. 
+    It also calls the model to evaluate. '''    
+def plotting_4features (model, data):
+    fig, axes = plt.subplots(4, 2, figsize=[8,16], dpi=200)
+    
+    feature = 0; Y_pred = model.pred_mean(data.X)[:,feature]
+    ax = axes[0,0]; plot_feature(ax,data.X[:,0],data.Y[:,feature],Y_pred.detach())
+    ax.set_ylim([0,1]); ax.set_xlim([0,20])
+    ax.set_xlabel('$U$'); ax.set_ylabel('Momentum flux (along)')
+    ax = axes[0,1]; plot_feature(ax,data.X[:,1]-data.X[:,2],data.Y[:,feature],Y_pred.detach(), LEGEND=False)
+    ax.set_ylim([0,1]); ax.set_xlim([-2,5])
+    ax.set_xlabel('$T_o-T_a$')
+    
+    feature = 1; Y_pred = model.pred_mean(data.X)[:,feature]
+    ax = axes[1,0]; plot_feature(ax,data.X[:,0],data.Y[:,feature],Y_pred.detach())
+    ax.set_ylim([-0.1,0.1]); ax.set_xlim([0,20])
+    ax.set_xlabel('$U$'); ax.set_ylabel('Momentum flux (cross)')
+    ax = axes[1,1]; plot_feature(ax,data.X[:,1]-data.X[:,2],data.Y[:,feature],Y_pred.detach(), LEGEND=False)
+    ax.set_ylim([-0.1,0.1]); ax.set_xlim([-2,5])
+    ax.set_xlabel('$T_o-T_a$')
+    
+    feature = 2; Y_pred = model.pred_mean(data.X)[:,feature]
+    ax = axes[2,0]; plot_feature(ax,data.X[:,0],data.Y[:,feature],Y_pred.detach())
+    ax.set_ylim([-60,20]); ax.set_xlim([0,20])
+    ax.set_xlabel('$U$'); ax.set_ylabel('Sensible heat flux')
+    ax = axes[2,1]; plot_feature(ax,data.X[:,1]-data.X[:,2],data.Y[:,feature],Y_pred.detach(), LEGEND=False)
+    ax.set_ylim([-60,20]); ax.set_xlim([-2,5])
+    ax.set_xlabel('$T_o-T_a$')
+    
+    feature = 3; Y_pred = model.pred_mean(data.X)[:,feature]
+    ax = axes[3,0]; plot_feature(ax,data.X[:,0],data.Y[:,feature],Y_pred.detach())
+    ax.set_ylim([-200,0]); ax.set_xlim([0,20])
+    ax.set_xlabel('$U$'); ax.set_ylabel('Latent heat flux')
+    ax = axes[3,1]; plot_feature(ax,data.X[:,3],data.Y[:,feature],Y_pred.detach(), LEGEND=False)
+    ax.set_ylim([-200,0]); ax.set_xlim([40,100])
+    ax.set_xlabel(r'$RH(\%)$'); 
+    
+    return fig
 
 def comparison(ds, ax, xplot='U', yplot='tau'):
     if xplot == 'Tdiff':

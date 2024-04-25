@@ -5,6 +5,8 @@ from mlflux.ann import ANN, train
 from time import time
 import copy
 
+from scipy.stats import wasserstein_distance, norm
+
 # def channelwise_function(X: np.array, fun) -> np.array:
 #     '''
 #     Help function for normalizing. For array X of size 
@@ -78,12 +80,25 @@ class FluxANNs(predictor):
         Ypred_var = (self.var_func(X_) * self.Yscale['scale'])**2
         return Ypred_var  
     
-    def r2(self, X, Ytruth):
+    def metrics(self, X, Ytruth):
         # These operations are performed on torch tensor
-        # return r2 as a torch tensor as well
+        # Assuming X is of dimension Nsample * Nfeatures
+        # return torch tensors as well
+        # Compute all three metrics together because why not
+        
         Ypred_mean = self.pred_mean(X)
-        r2 = 1 - torch.mean((Ypred_mean - Ytruth)**2, dim=0) / torch.var(Ytruth, dim=0) # over sample axis
-        return r2
+        mse = torch.mean((Ypred_mean - Ytruth)**2, dim=0)
+        r2 = 1 - mse / torch.var(Ytruth, dim=0) # over sample axis
+        Ypred_var = self.pred_var(X)
+        residual_norm = (Ytruth - Ypred_mean) / Ypred_var**0.5
+        wd = []
+        for yi in range(residual_norm.shape[-1]):
+            r = norm.rvs(size=1000000)  # Pick a big numble of samples from normal distribution  
+            l1 = wasserstein_distance(residual_norm[:,yi].detach(),r)
+            wd.append(l1)  
+        self.scores = {'mse':mse.detach(), 'r2':r2.detach(), 'wd':np.array(wd)}  
+        
+        return self.scores
     
     def mse_r2_scaled(self, dataset):
         # NOTICE: Here X and Y are assumed already SCALED 
@@ -93,6 +108,8 @@ class FluxANNs(predictor):
         mse = torch.mean((Ypred_mean - dataset.Y)**2, dim=0)
         r2 = 1 - mse / torch.var(dataset.Y, dim=0) # over sample axis
         return (mse, r2)
+
+
     
     ''' These two needs to be defined after knowing how many variables we are using.
         It is a dictionary containing mean and variance, each should be of dimension 1 * Nfeatures
@@ -107,7 +124,7 @@ class FluxANNs(predictor):
         # It depends on output vector length and need to be implemented later
         raise NotImplementedError            
     
-    def fit(self,training_data,validating_data,training_paras):
+    def fit(self, training_data, validating_data, training_paras, VERBOSE=True):
         ''' training_paras shoud be a dictionary containing:
             {'batchsize':100, 'num_epochs':100, 'lr':5e-3}
         '''
@@ -123,9 +140,10 @@ class FluxANNs(predictor):
         
         t_start = time()
         log = train (self.mean_func, self.var_func, training_data_cp, validating_data_cp, 
-                     self.mse_r2_scaled, **training_paras, FIXMEAN=False)
-        print(f'training took {time() - t_start:.2f} seconds')
-        return (log, training_data_cp)
+                     self.mse_r2_scaled, **training_paras, FIXMEAN=False, VERBOSE=VERBOSE)
+        print(f'training took {time() - t_start:.2f} seconds, loss at last epoch %.4f' %log['LLLoss'][-1])
+        self.log = log 
+        return log
     
     def evaluate_uniform (self):
         # A uniform grid flattened to make prediction maps
@@ -203,7 +221,7 @@ class FluxBulkANN(predictor):
         # It depends on output vector length and need to be implemented later
         raise NotImplementedError            
     
-    def fit(self,training_data,validating_data,training_paras):
+    def fit(self, training_data, validating_data, training_paras, VERBOSE=True):
         ''' training_paras shoud be a dictionary containing:
             {'batchsize':100, 'num_epochs':100, 'lr':5e-3}
         '''
@@ -219,9 +237,10 @@ class FluxBulkANN(predictor):
         
         t_start = time()
         log = train (self.mean_func, self.var_func, training_data_cp, validating_data_cp, 
-                     self.mse_r2_scaled, **training_paras, FIXMEAN=True)
-        print(f'training took {time() - t_start:.2f} seconds')
-        return (log, training_data_cp)
+                     self.mse_r2_scaled, **training_paras, FIXMEAN=True, VERBOSE=VERBOSE)
+        print(f'training took {time() - t_start:.2f} seconds, loss at last epoch %.4f' %log['LLLoss'][-1])
+        self.log = log 
+        return log
     
     def evaluate_uniform (self):
         # A uniform grid flattened to make prediction maps
