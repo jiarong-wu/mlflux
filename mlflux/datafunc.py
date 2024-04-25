@@ -27,7 +27,7 @@ def load_psd (filepath):
     ds_psd = ds_psd.rename_vars({'tsnk':'tsea','ta':'tair','qa':'qair','dummy2':'rh'})
     # Drop the not used variables
     ds_psd = ds_psd[['taucx','taucy','hsc','hlc','U','tsea','tair','qair',
-                     'rh', 'pcode','zu','zt','zq']]
+                     'rh', 'pcode','zu','zt','zq','lon','lat']]
     
     # A few more adjustments that are data set specific 
     ds_psd['qair'] = ds_psd['qair']/1000. # Make it into unit kg/kg
