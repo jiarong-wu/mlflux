@@ -24,10 +24,10 @@ def load_psd (filepath):
     print('Number of samples: %g' %(len(ds_psd.U.values)))
     
     # Rename fields (dummy2 is relative humidity)
-    ds_psd = ds_psd.rename_vars({'tsnk':'tsea','ta':'tair','qa':'qair','dummy2':'rh'})
+    ds_psd = ds_psd.rename_vars({'tsnk':'tsea','ta':'tair','qa':'qair','dummy2':'rh','dir':'wdir'})
     # Drop the not used variables
     ds_psd = ds_psd[['taucx','taucy','hsc','hlc','U','tsea','tair','qair',
-                     'rh', 'pcode','zu','zt','zq','lon','lat']]
+                     'rh', 'pcode','zu','zt','zq','lon','lat','wdir']] # Update: added the wind direction
     
     # A few more adjustments that are data set specific 
     ds_psd['qair'] = ds_psd['qair']/1000. # Make it into unit kg/kg
@@ -59,7 +59,8 @@ def load_atomic(filepath):
     ds_atomic['qair'] = ds_atomic['qair']/1000. # Make it into unit kg/kg
     
     # # Drop the not used variables (for atomic zu and ztq are coordinates)
-    ds_atomic = ds_atomic[['taucx','taucy','hsc','hlc','U','tsea','tair','qair','rh','zu','zt','zq']]
+    ds_atomic = ds_atomic[['taucx','taucy','hsc','hlc','U','tsea','tair','qair','rh','zu','zt','zq',
+                           'wdir','cspd','cdir','wave_height','wave_period','wave_flag']] # Update: added the current info
     
     # Compute bulk using COARE3.6 and then append to dataset
     # Here zq and zt are the same height 
