@@ -1,3 +1,6 @@
+''' This file contains code that we used to process the fluxes_all_cruises_compilation.nc file,, which includes
+    removing nans, computing the bulk formula prediction and saving to new file. '''
+
 import xarray as xr
 from mlflux.datafunc import load_psd, load_atomic
 
