@@ -109,7 +109,7 @@ def assemble_var (ds, choice='U_Tdiff_rh'):
     
     return (X,Y)
     
-def data_split_psd(ds, split, PLOT=True, XVIS='time'):
+def data_split_psd(ds, split, PLOT=True, XVIS='time', VERBOSE=True):
     ''' Split the data into training, validation, and testing. 
         This function is specific to the PSD data set with the cruise 
         labeled by [77, 69, 83, 78, 87, 72, 71, 68, 67, 73].
@@ -121,13 +121,13 @@ def data_split_psd(ds, split, PLOT=True, XVIS='time'):
     '''
     colors = ['Blue','Purple','Pink']
     psd_train = ds.where(ds.pcode.isin(split[0]), drop=True)
-    print('Training samples: %g' %len(psd_train.U.values))
-
     psd_valid = ds.where(ds.pcode.isin(split[1]), drop=True)
-    print('Validating samples: %g' %len(psd_valid.U.values))
-
     psd_test = ds.where(ds.pcode.isin(split[2]), drop=True)
-    print('Testing samples: %g' %len(psd_test.U.values))
+    
+    if VERBOSE:
+        print('Training samples: %g' %len(psd_train.U.values))
+        print('Validating samples: %g' %len(psd_valid.U.values))
+        print('Testing samples: %g' %len(psd_test.U.values))
 
     if PLOT:
         fig = plt.figure(figsize=[6,4], dpi=200) 

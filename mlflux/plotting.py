@@ -84,6 +84,38 @@ def comparison(ds, ax, xplot='U', yplot='tau'):
     ax.legend(fancybox=False, loc='upper left')
     return ax
 
+def vis_training (log):
+    fig, axes = plt.subplots(4,1,sharex=True,figsize=[4,8],dpi=200)
+          
+    log['training_mse'] = np.array(log['training_mse'])
+    log['training_r2'] = np.array(log['training_r2'])
+    log['validating_mse'] = np.array(log['validating_mse'])
+    log['validating_r2'] = np.array(log['validating_r2'])
+
+    axes[0].plot(log['LLLoss'])
+    axes[0].set_ylabel('Loss')
+    axes[0].set_ylim([-100,500])
+    
+    axes[1].plot(log['lr'])
+    axes[1].set_ylabel('Learning rate')
+    axes[1].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
+    axes[1].set_ylim([0,0.002])
+    
+    for i in range(len(log['training_r2'][0])):
+        line, = axes[2].plot(log['training_r2'][:,i], label='Training data') 
+        axes[2].plot(log['validating_r2'][:,i], label='Validating data')
+    axes[2].set_ylabel(r'$R^2$')
+    axes[2].legend(fontsize=6)
+    # axes[2].set_ylim([0,1])
+    
+    for i in range(len(log['training_r2'][0])):
+        line, = axes[3].plot(log['training_mse'][:,i], label='Training data') 
+        axes[3].plot(log['validating_mse'][:,i], label='Validating data')
+        # axes[3].plot(log['validating_mse'][:,i], '--', c=line.get_color(), label='Validating data, feature %g' %(i+1))
+    axes[3].set_ylabel(r'$MSE$')
+    axes[3].set_xlabel('Epoch')
+    
+    return fig, axes
     
 # def comparison_witherror(X, Y, predictor):
 #     ''' Scatter plot that include the uncertainty '''

@@ -11,9 +11,11 @@ from torch.utils.data import Dataset, DataLoader
 ''' This class of ANN is inherited from Pavel's code 
     https://github.com/m2lines/pyqg_generative/blob/master/pyqg_generative/tools/cnn_tools.py
     with the change of activation function from ReLu to Sigmoid.
+    ACTIVATION can be 'no' (for mean), 'square' or 'exponential' (for variance to ensure positivity)
 '''  
 class ANN(nn.Module):
-    def __init__(self, n_in, n_out, hidden_channels=[24, 24], degree=None):
+    def __init__(self, n_in, n_out, hidden_channels=[24, 24], degree=None, ACTIVATION='no'):
+
         super().__init__()
         
         self.degree = degree # But not necessary for this application
@@ -29,13 +31,19 @@ class ANN(nn.Module):
         layers.append(nn.Linear(hidden_channels[-1], n_out))
         
         self.layers = nn.Sequential(*layers)
+        self.activation = ACTIVATION
     
     def forward(self, x):
         if self.degree is not None:
             norm = torch.norm(x, dim=-1, p=2, keepdim=True)  # Norm computed across features
             return norm**self.degree * self.layers(x / norm)   # Normalizing by vector norm, for every sample
         else:
-            return self.layers(x)
+            if self.activation == 'no':
+                return self.layers(x)
+            elif self.activation == 'square':
+                return self.layers(x)**2
+            elif self.activation == 'exponential':
+                return torch.exp(self.layers(x))
     
     def loss_mse(self, x, ytrue):
         return {'loss': nn.MSELoss()(self.forward(x), ytrue)}
@@ -43,8 +51,8 @@ class ANN(nn.Module):
 ''' Trying a different architecture with fixed weights in first layer for temperatures '''
 from mlflux.ann import ANN
 class ANNdiff(ANN):
-    def __init__(self, n_in=4, n_out=4, hidden_channels=[24, 24], degree=None):
-        super().__init__(n_in, n_out, hidden_channels, degree)
+    def __init__(self, n_in=4, n_out=4, hidden_channels=[24, 24], degree=None, ACTIVATION='no'):
+        super().__init__(n_in, n_out, hidden_channels, degree, ACTIVATION)
         self.degree = degree # But not necessary for this application
     
         layers = []
@@ -180,11 +188,14 @@ class SynFluxDataset1D(Dataset):
     
     We don't worry about moving the net to device like https://github.com/m2lines/pyqg_generative/blob/master/pyqg_generative/tools/cnn_tools.py
     because the nets are expected to be small.
+    
+    if use EARLYSTOPPING: specify patience (an integer).
 '''
 
 
 def train (mean_func, var_func, training_data, validating_data, evaluate_func,
-           batchsize=100, num_epochs=100, lr=5e-3, gamma=0.2, FIXMEAN=True, VERBOSE=True):
+           batchsize=100, num_epochs=100, lr=5e-3, gamma=0.2, FIXMEAN=True, VERBOSE=True, 
+           EARLYSTOPPING=False, patience=5, factor=0.1, max_epochs_without_improvement=10):
     
     # Put the training data into dataloader
     dataloader = DataLoader(training_data, batch_size=batchsize, shuffle=True)
@@ -197,8 +208,16 @@ def train (mean_func, var_func, training_data, validating_data, evaluate_func,
             +list(mean_func.parameters()), lr=lr)
     
     # Can adjust the scheduler later
-    milestones = [int(num_epochs/2), int(num_epochs*3/4), int(num_epochs*7/8)] 
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
+    if EARLYSTOPPING:
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=patience, 
+                                                         factor=factor, verbose=VERBOSE) # Learning rate decrease by 10 if patience is reached
+        best_validation_mse = float('inf') # But also hard cutoff when mse keeps increasing
+        epochs_without_improvement = 0
+    else:
+        milestones = [int(num_epochs/2), int(num_epochs*3/4), int(num_epochs*7/8)] 
+        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
+    
+    
     log = {'LLLoss': [], 'lr': [], 'training_mse': [], 'validating_mse': [], 'training_r2': [], 'validating_r2': []}
     loss = nn.GaussianNLLLoss(reduction='none')
 
@@ -208,27 +227,38 @@ def train (mean_func, var_func, training_data, validating_data, evaluate_func,
         for i, (inputs, targets, w) in enumerate(dataloader):
             optimizer.zero_grad()
             mean = mean_func(inputs)
-            # TODO: maybe change where this activation is 
-            var = (var_func(inputs))**2 # squared to predict positive variance 
+            var = var_func(inputs)
             likelihood = torch.sum(loss(targets, mean, var)*w)   
             likelihood.backward() 
             optimizer.step()
-            LLLoss += likelihood.item() * len(inputs)  # Returns the value of this tensor as a standard Python number          
-        scheduler.step()     
-
+            LLLoss += likelihood.item() * len(inputs)  # Returns the value of this tensor as a standard Python number         
+            
         LLLoss = LLLoss / len(training_data)
         log['LLLoss'].append(LLLoss)
-        log['lr'].append(scheduler.get_last_lr())
         
-        # TODO: write a function that evaluate some metrics and then log
-        # It could be some metrics function of predictor
-        # It could be performed on both training and validating dataset
-        # These can be added to the log dictionary
-        mse, r2 = evaluate_func(training_data)
-        log['training_mse'].append(mse.detach()); log['training_r2'].append(r2.detach())
-        mse, r2 = evaluate_func(validating_data)
-        log['validating_mse'].append(mse.detach()); log['validating_r2'].append(r2.detach())
+        train_mse, train_r2 = evaluate_func(training_data)
+        log['training_mse'].append(train_mse.detach()); log['training_r2'].append(train_r2.detach())
+        validate_mse, validate_r2 = evaluate_func(validating_data)
+        log['validating_mse'].append(validate_mse.detach()); log['validating_r2'].append(validate_r2.detach())
         
+        # For now just on output 1
+        if EARLYSTOPPING:
+            if validate_mse.detach()[0] < best_validation_mse:
+                best_validation_mse = validate_mse.detach()[0]
+                epochs_without_improvement = 0
+            else:
+                epochs_without_improvement += 1
+            if epochs_without_improvement >= max_epochs_without_improvement:
+                print(f'Early stopping triggered after {epoch+1} epochs.')
+                break
+    
+        if EARLYSTOPPING:
+            scheduler.step(validate_mse[0]) # For now just on output 1
+        else: 
+            scheduler.step()    
+            
+        log['lr'].append(scheduler.get_last_lr()) 
+
         # TODO: write a function for visualizing of the model behavior across epochs, if so desire
         # var = (predictor.var_func(training_data.X_uniform))**2
         # mean = predictor.mean_func(training_data.X_uniform)
@@ -239,4 +269,9 @@ def train (mean_func, var_func, training_data, validating_data, evaluate_func,
             print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {LLLoss:.8f}")    
         
     return log
+
+
+    
+    
+
 
