@@ -111,18 +111,18 @@ class FluxANNs(predictor):
 
 
     
-    ''' These two needs to be defined after knowing how many variables we are using.
-        It is a dictionary containing mean and variance, each should be of dimension 1 * Nfeatures
-    '''
-    @property
-    def Xscale(self):
-        # It depends on variable feature length and need to be implemented later
-        raise NotImplementedError
+    # ''' These two needs to be defined after knowing how many variables we are using.
+    #     It is a dictionary containing mean and variance, each should be of dimension 1 * Nfeatures
+    # '''
+    # @property
+    # def Xscale(self):
+    #     # It depends on variable feature length and need to be implemented later
+    #     raise NotImplementedError
     
-    @property
-    def Yscale(self):
-        # It depends on output vector length and need to be implemented later
-        raise NotImplementedError            
+    # @property
+    # def Yscale(self):
+    #     # It depends on output vector length and need to be implemented later
+    #     raise NotImplementedError            
     
     def fit(self, training_data, validating_data, training_paras, VERBOSE=True):
         ''' training_paras shoud be a dictionary containing:

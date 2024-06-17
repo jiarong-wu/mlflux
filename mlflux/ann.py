@@ -44,6 +44,9 @@ class ANN(nn.Module):
                 return self.layers(x)**2
             elif self.activation == 'exponential':
                 return torch.exp(self.layers(x))
+            elif self.activation == 'softplus':
+                m = nn.Softplus()
+                return m(self.layers(x))
     
     def loss_mse(self, x, ytrue):
         return {'loss': nn.MSELoss()(self.forward(x), ytrue)}
