@@ -52,17 +52,19 @@ class ANN(nn.Module):
         return {'loss': nn.MSELoss()(self.forward(x), ytrue)}
     
 ''' Trying a different architecture with fixed weights in first layer for temperatures '''
-from mlflux.ann import ANN
 class ANNdiff(ANN):
     def __init__(self, n_in=4, n_out=4, hidden_channels=[24, 24], degree=None, ACTIVATION='no'):
         super().__init__(n_in, n_out, hidden_channels, degree, ACTIVATION)
         self.degree = degree # But not necessary for this application
     
         layers = []
-        if n_in != 4:
-            raise ValueError('Check the input feature number! This class so far only supports U, To, Ta, rh as inputs!')
+        if n_in != 4 and n_in != 5:
+            raise ValueError('Check the input feature number! This class so far only supports [U, To, Ta, rh] or [U, To, Ta, rh, qa] as inputs!')
         fixed_layer = nn.Linear(n_in, n_in+1, bias=False)
-        weights = torch.tensor(np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1],[0,1,-1,0]]).astype('float32')) # The additional variable takes the difference of the temperature
+        if n_in == 4:
+            weights = torch.tensor(np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1],[0,1,-1,0]]).astype('float32')) # The additional variable takes the difference of the temperature
+        elif n_in == 5:
+            weights = torch.tensor(np.array([[1,0,0,0,0],[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1],[0,1,-1,0,0]]).astype('float32')) # The additional variable takes the difference of the temperature
         fixed_layer.weight = nn.Parameter(weights,requires_grad=False)
         layers.append(fixed_layer) # Only works when inputs are U-Tsea-Tair
         layers.append(nn.Linear(n_in+1, hidden_channels[0]))

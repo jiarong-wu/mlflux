@@ -4,6 +4,13 @@ import numpy as np
 import xarray as xr
 from numpy import copy, asarray, exp
 
+''' Adjust longitude in datasets '''
+
+def sort_longitude(x):
+    x['lon'] = np.where(x['lon']>0, x['lon'], 360+x['lon'])
+    x = x.sortby('lon')
+    return x
+
 ''' Physical quantities. '''
 
 def qsat(t,p):
@@ -53,7 +60,6 @@ def mse_r2(ypred, ytruth):
     mse = np.average((ypred-ytruth)**2)
     r2 = 1 - np.average((ypred-ytruth)**2)/np.var(ytruth)
     return (mse,r2)
-
 
 
 import matplotlib.pyplot as plt

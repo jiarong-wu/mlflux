@@ -1,7 +1,7 @@
 import pickle 
 import numpy as np
 import torch 
-from mlflux.ann import ANN, train
+from mlflux.ann import ANN, ANNdiff, train
 from time import time
 import copy
 
@@ -43,8 +43,7 @@ class predictor:
 
     def save(self, fname="model_1"):
         ## Use fname if the fname is defined.
-        pickle.dump(self, open(getattr(self, "fname", fname) + ".p", "wb"))
-        
+        pickle.dump(self, open(getattr(self, "fname", fname) + ".p", "wb")) 
 
 
 class FluxANNs(predictor):
@@ -149,6 +148,13 @@ class FluxANNs(predictor):
         # A uniform grid flattened to make prediction maps
         # Need to be implemented depending on how many input features
         raise NotImplementedError
+
+class Fluxdiff(FluxANNs):
+    ''' Similar as FluxANNs but with a fixed channel for variable difference. '''
+    def __init__(self,params={}):
+        super().__init__(params)
+        self.mean_func = ANNdiff(**self.mean_ann_para)
+        self.var_func = ANNdiff(**self.var_ann_para) 
   
 
 class FluxBulkANN(predictor):
