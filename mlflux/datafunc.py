@@ -14,7 +14,7 @@ except ImportError:
     pass
 
 
-def load_psd (filepath):
+def load_psd (filepath, algo='coare3p6'):
     ''' Load the psd data and compute bulk '''
     ds = xr.load_dataset(filepath)
     
@@ -36,7 +36,7 @@ def load_psd (filepath):
     
     # Compute bulk using COARE3.6 and then append to dataset
     # Here when zq and zt are different height we use zt
-    ds_psd = applybulk(ds_psd, algo='coare3p6')
+    ds_psd = applybulk(ds_psd, algo=algo)
     return ds_psd
 
 def load_atomic(filepath):

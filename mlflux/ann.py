@@ -223,7 +223,8 @@ def train (mean_func, var_func, training_data, validating_data, evaluate_func,
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
     
     
-    log = {'LLLoss': [], 'lr': [], 'training_mse': [], 'validating_mse': [], 'training_r2': [], 'validating_r2': []}
+    log = {'LLLoss': [], 'lr': [], 'training_mse': [], 'validating_mse': [], 'training_r2': [], 'validating_r2': [],
+           'validating_LLLoss': []}
     loss = nn.GaussianNLLLoss(reduction='none')
 
     # Training
@@ -241,10 +242,11 @@ def train (mean_func, var_func, training_data, validating_data, evaluate_func,
         LLLoss = LLLoss / len(training_data)
         log['LLLoss'].append(LLLoss)
         
-        train_mse, train_r2 = evaluate_func(training_data)
+        train_mse, train_r2, train_LLLoss = evaluate_func(training_data)
         log['training_mse'].append(train_mse.detach()); log['training_r2'].append(train_r2.detach())
-        validate_mse, validate_r2 = evaluate_func(validating_data)
-        log['validating_mse'].append(validate_mse.detach()); log['validating_r2'].append(validate_r2.detach())
+        validate_mse, validate_r2, validate_LLLoss = evaluate_func(validating_data)
+        log['validating_mse'].append(validate_mse.detach()); log['validating_r2'].append(validate_r2.detach()); 
+        log['validating_LLLoss'].append(validate_LLLoss.detach())
         
         # For now just on output 1
         if EARLYSTOPPING:
