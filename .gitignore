@@ -3,6 +3,8 @@
 *.png
 .DS_Store
 *.pyc
+*.dat
+*.txt
 data/
 others/
 saved_model/

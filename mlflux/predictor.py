@@ -163,4 +163,28 @@ class Fluxdiff(FluxANNs):
         super().__init__(params)
         self.mean_func = ANNdiff(**self.mean_ann_para)
         self.var_func = ANNdiff(**self.var_ann_para) 
-  
+
+
+''' Ad hoc ensemble prediction.
+    TODO: make it take variables to identify ANNs better. '''
+
+def ensem_predict(X, N=6, modelname='../saved_model/full_anns_diff_latent_3layers_split'):
+
+    Y_ensem = []
+    Sigma_ensem = []
+    
+    for i in range(0,N):
+        filename = modelname + "%g.p" %(i+1)
+        with open(filename, "rb") as input_file:
+            model = pickle.load(input_file)
+            Y = model.pred_mean(X).detach().numpy()
+            Sigma = model.pred_var(X).detach().numpy()
+            Y_ensem.append(Y)
+            Sigma_ensem.append(Sigma)
+
+    Y_mean = np.average(np.array(Y_ensem), axis=0)
+    Y_std = np.std(np.array(Y_ensem), axis=0) 
+    Sigma_mean = np.average(np.array(Sigma_ensem), axis=0)
+    Sigma_std = np.std(np.array(Sigma_ensem), axis=0)
+
+    return Y_mean, Y_std, Sigma_mean, Sigma_std
