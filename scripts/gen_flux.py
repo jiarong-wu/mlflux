@@ -1,3 +1,5 @@
+''' Generate flux from ANN. Use in combination with flux.sh '''
+
 import argparse
 import os
 import xarray as xr
@@ -18,22 +20,6 @@ if __name__ == "__main__":
 
     # Parse the arguments
     args = parser.parse_args()
-
-    if args.corrtime is None:
-        args.corrtime = input("Please enter correlation time: ")
-
-
-    # parser.add_argument('--stencil_size', type=int, default=3)
-    # parser.add_argument('--hidden_layers', type=str, default='[20]')
-    # parser.add_argument('--collocated', type=str, default='False')
-    # parser.add_argument('--short_waves_dissipation', type=str, default='False')
-    # parser.add_argument('--short_waves_zero', type=str, default='False')
-    # parser.add_argument('--jacobian_trace', type=str, default='False')
-    # parser.add_argument('--perturbed_inputs', type=str, default='False')
-    # parser.add_argument('--grid_harmonic', type=str, default='plane_wave')
-    # parser.add_argument('--jacobian_reduction', type=str, default='component')
-
-    # args.factors = eval(args.factors)
                         
     # Path
     # input_folder = '/home/jw8736/code-5.2.1/cases/ows_papa/'
@@ -41,37 +27,46 @@ if __name__ == "__main__":
     input_folder = args.input_folder
     output_folder = args.output_folder
 
-    # Read and interpolate to hourly
+    # Read and interpolate to hourly and then coarsen according to dt
     df = read2010(input_folder, datetimeformat='%Y-%m-%d %H:%M:%S')    
     df_ = df.set_index('datetime')
     ds = xr.Dataset.from_dataframe(df_)
     ds_uniform = ds.resample(datetime='H').interpolate('linear') # Interpolation non-uniform to hourly
-    # ds_hat = ds_uniform.resample(datetime='3H').mean() # Coarsening to 3-hourly
     ds = ds_uniform.sel(datetime=slice(args.sd,args.ed))
+    print ('Coarsening inputs from hourly to %d hourly!' %args.dt) # Coarsening to dt
+    dt_str = str(int(args.dt)) + 'H' 
+    ds = ds.resample(datetime=dt_str).mean() 
     
     # Predict by ANNs 
     from mlflux.predictor import Fluxdiff
     ds = predict(ds)
 
+    # Write to file
     output_path = output_folder + f'{args.sd}_{args.ed}/'
     print(output_path)
     os.system(f'mkdir -p {output_path}')
 
     if args.flux == 'heat':
         Q_eps_ensem = gen_epsilon_flux (ds, FLUX='heat', T=args.corrtime, dt=args.dt, ENSEM=args.ensem)
-        mean = ds.Q.values.reshape(-1,1) 
+        mean = ds.Q_ann.values.reshape(-1,1) 
         eps_ensem = Q_eps_ensem.reshape(args.ensem, -1, 1) # of shape ensem*time*number_of_quantities_per_row
-        write_stoch_flux (path=output_path, datetime=ds.datetime.values, mean=mean, eps_ensem=eps_ensem, prefix='heatflux_ann')
+        bulk = ds.Q.values.reshape(-1,1) 
+        write_stoch_flux (path=output_path, datetime=ds.datetime.values,
+                          mean=mean, eps_ensem=eps_ensem, bulk=bulk, prefix='heatflux_')
 
     if args.flux == 'momentum':
         taux_eps_ensem = gen_epsilon_flux (ds, FLUX='taux', T=args.corrtime, dt=args.dt, ENSEM=args.ensem)
         tauy_eps_ensem = gen_epsilon_flux (ds, FLUX='tauy', T=args.corrtime, dt=args.dt, ENSEM=args.ensem)
-        mean1 = ds.taux.values
-        mean2 = ds.tauy.values
+        mean1 = ds.taux_ann.values
+        mean2 = ds.tauy_ann.values
         mean = np.concatenate((mean1[..., np.newaxis], mean2[..., np.newaxis]), axis=-1)
         eps_ensem = np.concatenate((taux_eps_ensem[..., np.newaxis], tauy_eps_ensem[..., np.newaxis]), axis=-1)  
-        write_stoch_flux (path=output_path, datetime=ds.datetime.values, mean=mean, eps_ensem=eps_ensem, prefix='momentumflux_ann') 
+        bulk1 = ds.taux.values
+        bulk2 = ds.tauy.values
+        bulk = np.concatenate((bulk1[..., np.newaxis], bulk2[..., np.newaxis]), axis=-1)
+        write_stoch_flux (path=output_path, datetime=ds.datetime.values, 
+                          mean=mean, eps_ensem=eps_ensem, bulk=bulk, prefix='momentumflux_') 
 
-    
+    # Some optional moving data around
     os.system(f'cp {output_folder}shared/* {output_path}')
 

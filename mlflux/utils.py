@@ -4,6 +4,35 @@ import numpy as np
 import xarray as xr
 from numpy import copy, asarray, exp
 
+def save_ds_compressed(ds, filename):
+    encoding = {}
+    for var_name in ds.data_vars:
+        encoding[var_name] = {'dtype': 'float32', 'zlib': True}
+
+    ds.to_netcdf(filename, encoding=encoding)
+    
+''' Get cruise info, return a list of dictionary '''
+def get_cruise ():
+    metz = {'name':'metz', 'pcode':77, 'months':['199301','199302','199303','199304','199305','199306','199307','199308','199309',
+            '199612','199801','199905','199906','199907','199908','199909','199910','199911','199912']} # checked
+    calwater = {'name':'calwater', 'pcode':67, 'months':['201501','201502']}
+    hiwings = {'name':'hiwings', 'pcode':72, 'months':['201309','201310','201311']}
+    capricorn = {'name':'capricorn', 'pcode':73, 'months':['201603','201604']}
+    dynamo = {'name':'dynamo', 'pcode':68, 'months':['201109','201110','201111','201112']}
+    stratus = {'name':'stratus', 'pcode':83, 'months':['200110','200412','200510','200610','200710','200711',
+                                                      '200810','200811','200812','201001']}
+    epic = {'name':'epic', 'pcode':69, 'months':['199911','199912',
+            '200004','200005','200006','200007','200008','200009','200010','200011',
+            '200103','200104','200105','200106','200107','200108','200109','200110','200111','200112',
+            '200203','200204','200205','200206','200207','200208','200209','200210','200211',
+            '200311','200410','200411']}
+    whots = {'name':'whots', 'pcode':87, 'months':['200907','201107','201206','201307','201407','201507']} #checked
+    neaqs = {'name':'neaqs', 'pcode':78, 'months':['200407','200408']} #checked
+    gasex = {'name':'gasex', 'pcode':71, 'months':['200803','200804']} #checked
+    cruises = [metz, calwater,hiwings,capricorn,dynamo,stratus,epic,whots,neaqs,gasex]
+    return cruises
+
+
 ''' Adjust longitude in datasets '''
 
 def sort_longitude(x):

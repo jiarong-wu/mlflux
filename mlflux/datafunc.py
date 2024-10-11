@@ -24,13 +24,14 @@ def load_psd (filepath, algo='coare3p6'):
     print('Number of samples: %g' %(len(ds_psd.U.values)))
     
     # Rename fields (dummy2 is relative humidity)
-    ds_psd = ds_psd.rename_vars({'tsnk':'tsea','ta':'tair','qa':'qair','dummy2':'rh','dir':'wdir'})
+    ds_psd = ds_psd.rename_vars({'tsnk':'tsea','ta':'tair','qa':'qair','dummy1':'p','dummy2':'rh','dir':'wdir'})
     # Drop the not used variables
     ds_psd = ds_psd[['taucx','taucy','hsc','hlc','U','tsea','tair','qair',
-                     'rh', 'pcode','zu','zt','zq','lon','lat','wdir']] # Update: added the wind direction
+                     'p', 'rh', 'pcode','zu','zt','zq','lon','lat','wdir']] # Update: added the wind direction
     
     # A few more adjustments that are data set specific 
     ds_psd['qair'] = ds_psd['qair']/1000. # Make it into unit kg/kg
+    ds_psd['p'] = ds_psd['p']*100. # from millibar to pascal
     ds_psd['hsc'] = -ds_psd['hsc'] # Heat flux is positive when it's from air to ocean
     ds_psd['hlc'] = -ds_psd['hlc']
     
@@ -71,11 +72,12 @@ def applybulk(ds, algo='coare3p6'):
     ''' Dependence: aerobulk-python
         https://github.com/jbusecke/aerobulk-python 
         Installation through conda works on Greene but not on MacBook yet.
+        Update: use measured pressure instead of constant pressure!
     '''
     hl, hs, taux, tauy, evap = noskin(sst=ds.tsea+273.15, t_zt=ds.tair+273.15, 
                                       hum_zt=ds.qair, u_zu=ds.U, v_zu=ds.U*0, 
-                                      slp=ds.U/ds.U*101000.0, algo=algo, 
-                                      zt=ds.zt, zu=ds.zu)
+                                      slp=ds.p, algo=algo, 
+                                      zt=ds.zt, zu=ds.zu)  
     ds = ds.assign(hlb=hl,hsb=hs,taubx=taux)
     return ds
 
@@ -152,4 +154,18 @@ def data_split_psd(ds, split, PLOT=True, XVIS='time', VERBOSE=True):
                     xy=(0.01,0.85), xycoords='axes fraction', color=colors[2])
         plt.show()
 
+    return (psd_train, psd_valid, psd_test)
+
+def data_split_psd_rand(ds, seed=7, ratio=0.2):
+    ''' Split the data into training, validation, and testing randomly. 
+    '''
+    np.random.seed(seed)
+    N = ds.sizes['time']
+    test_indices = np.random.choice(N, size=int(N*ratio), replace=False)
+    train_indices = np.setdiff1d(np.arange(0,N), test_indices)
+
+    psd_train = ds.isel(time=train_indices)
+    psd_valid = ds.isel(time=test_indices)
+    psd_test = ds.isel(time=test_indices)
+    
     return (psd_train, psd_valid, psd_test)

@@ -102,21 +102,27 @@ class FluxANNs(predictor):
         
         return self.scores
     
-    def mse_r2_likelihood_scaled(self, dataset):
+    def score_scaled(self, dataset):
         # NOTICE: Here X and Y are assumed already SCALED 
         # Used for evaluation during training
-        # There is also NO weights applied!!
+        # Weights are applied!!
         X_ = dataset.X
         Ypred_mean = self.mean_func(X_) 
         Ypred_var = self.var_func(X_)
-        
-        mse = torch.mean((Ypred_mean - dataset.Y)**2, dim=0)
-        r2 = 1 - mse / torch.var(dataset.Y, dim=0) # over sample axis
+
+        # mse and r2
+        mse = torch.mean((Ypred_mean - dataset.Y)**2*dataset.W, dim=0)
+        r2 = 1 - mse / torch.mean(dataset.Y**2*dataset.W, dim=0) # over sample axis
+        # log likelihood loss
         loss = nn.GaussianNLLLoss(reduction='none')
-        LLLoss = torch.sum(loss(dataset.Y, Ypred_mean, Ypred_var)) 
-        # TODO: should we add weights?
+        LLLoss = torch.mean(loss(dataset.Y, Ypred_mean, Ypred_var)*dataset.W, dim=0)
+        # residual gaussianity
+        error = Ypred_mean - dataset.Y
+        error_norm = error / Ypred_var**0.5
+        res_mean = torch.mean(error_norm*dataset.W, dim=0)
+        res_var = torch.mean(error_norm**2*dataset.W, dim=0)
         
-        return (mse, r2, LLLoss)
+        return np.array([mse.detach(), r2.detach(), LLLoss.detach(), res_mean.detach(), res_var.detach()]).squeeze()
    
     # ''' These two needs to be defined after knowing how many variables we are using.
     #     It is a dictionary containing mean and variance, each should be of dimension 1 * Nfeatures
@@ -147,7 +153,7 @@ class FluxANNs(predictor):
         
         t_start = time()
         log = train (self.mean_func, self.var_func, training_data_cp, validating_data_cp, 
-                     self.mse_r2_likelihood_scaled, **training_paras, FIXMEAN=False, VERBOSE=VERBOSE)
+                     self.score_scaled, **training_paras, FIXMEAN=False, VERBOSE=VERBOSE)
         print(f'training took {time() - t_start:.2f} seconds, loss at last epoch %.4f' %log['LLLoss'][-1])
         self.log = log 
         return log

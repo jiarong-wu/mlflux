@@ -97,7 +97,7 @@ def sample_weights(x):
 ''' Construct a dataset from real measurements '''
 class RealFluxDataset(Dataset):
     def __init__(self, ds, input_keys=['U','tsea','tair','rh'], output_keys=['taucx','taucy','hsc','hlc'], 
-                 bulk_keys=['taubx','tauby','hsb','hlb'], weightfunc=sample_weights):
+                 bulk_keys=['taubx','tauby','hsb','hlb']):
         
         ###### Assemble input and output features ######
         self.X = torch.tensor(np.hstack([ds[key].values.reshape(-1,1) for key in input_keys]).astype('float32'))
@@ -105,8 +105,9 @@ class RealFluxDataset(Dataset):
         ###### Assemble bulk ######
         self.Bulk = torch.tensor(np.hstack([ds[key].values.reshape(-1,1) for key in bulk_keys]).astype('float32'))    
         ###### Weights according to weightfunc of choice, weight needs to match output dimension ######
-        weights = weightfunc(self.X[:,0]).reshape(-1,1)
-        weights = np.repeat(weights, len(output_keys), axis=1)
+        # weights = weightfunc(self.X[:,0]).reshape(-1,1)
+        # weights given by the dataset
+        weights = np.repeat(ds['weight'].values.reshape(-1,1), len(output_keys), axis=1) 
         self.W = torch.tensor(weights.astype('float32'))
         
     def __len__(self):
@@ -216,15 +217,14 @@ def train (mean_func, var_func, training_data, validating_data, evaluate_func,
     if EARLYSTOPPING:
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=patience, 
                                                          factor=factor, verbose=VERBOSE) # Learning rate decrease by 10 if patience is reached
-        best_validation_mse = float('inf') # But also hard cutoff when mse keeps increasing
+        best_validation = float('inf') # But also hard cutoff when mse keeps increasing
         epochs_without_improvement = 0
     else:
         milestones = [int(num_epochs/2), int(num_epochs*3/4), int(num_epochs*7/8)] 
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
     
     
-    log = {'LLLoss': [], 'lr': [], 'training_mse': [], 'validating_mse': [], 'training_r2': [], 'validating_r2': [],
-           'validating_LLLoss': []}
+    log = {'LLLoss': [], 'lr': [], 'training_scores': [], 'validating_scores': []}
     loss = nn.GaussianNLLLoss(reduction='none')
 
     # Training
@@ -234,7 +234,7 @@ def train (mean_func, var_func, training_data, validating_data, evaluate_func,
             optimizer.zero_grad()
             mean = mean_func(inputs)
             var = var_func(inputs)
-            likelihood = torch.sum(loss(targets, mean, var)*w)   
+            likelihood = torch.sum(loss(targets, mean, var)*w)  
             likelihood.backward() 
             optimizer.step()
             LLLoss += likelihood.item() * len(inputs)  # Returns the value of this tensor as a standard Python number         
@@ -242,16 +242,22 @@ def train (mean_func, var_func, training_data, validating_data, evaluate_func,
         LLLoss = LLLoss / len(training_data)
         log['LLLoss'].append(LLLoss)
         
-        train_mse, train_r2, train_LLLoss = evaluate_func(training_data)
-        log['training_mse'].append(train_mse.detach()); log['training_r2'].append(train_r2.detach())
-        validate_mse, validate_r2, validate_LLLoss = evaluate_func(validating_data)
-        log['validating_mse'].append(validate_mse.detach()); log['validating_r2'].append(validate_r2.detach()); 
-        log['validating_LLLoss'].append(validate_LLLoss.detach())
+        train_scores = evaluate_func(training_data)
+        log['training_scores'].append(train_scores)
+        
+        val_scores = evaluate_func(validating_data)
+        log['validating_scores'].append(val_scores)
+
+        np.set_printoptions(precision=4)
+        print(train_scores)
+        print(val_scores)
         
         # For now just on output 1
+        # We can also set early stopping based on mse, if performing regression
+        # best_validation_mse = validating_scores[0] # stop if validating mse is minimized
         if EARLYSTOPPING:
-            if validate_mse.detach()[0] < best_validation_mse:
-                best_validation_mse = validate_mse.detach()[0]
+            if abs(val_scores[-1] - 1) < best_validation:
+                best_validation = abs(val_scores[-1] - 1) # stop when normalized variance on validating dataset is 1
                 epochs_without_improvement = 0
             else:
                 epochs_without_improvement += 1
@@ -260,7 +266,9 @@ def train (mean_func, var_func, training_data, validating_data, evaluate_func,
                 break
     
         if EARLYSTOPPING:
-            scheduler.step(validate_mse[0]) # For now just on output 1
+            # For now just on output 1 (in the case where there are multiple outputs)
+            # scheduler.step(validating_scores[0]) # stop if validating mse is minimized
+            scheduler.step(abs(val_scores[-1] - 1)) # stop when normalized variance on validating dataset is 1
         else: 
             scheduler.step()    
             
