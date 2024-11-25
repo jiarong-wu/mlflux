@@ -11,3 +11,6 @@ saved_model/
 *.pyc
 */.ipynb_checkpoints/
 */*/.ipynb_checkpoints/
+slurm-*.out
+*~
+gotm/ows_papa/

@@ -2,7 +2,7 @@ import pickle
 import numpy as np
 import torch 
 import torch.nn as nn
-from mlflux.ann import ANN, ANNdiff, train
+from mlflux.ann import ANN, ANNdiff, train, train_mse
 from time import time
 import copy
 
@@ -123,6 +123,20 @@ class FluxANNs(predictor):
         res_var = torch.mean(error_norm**2*dataset.W, dim=0)
         
         return np.array([mse.detach(), r2.detach(), LLLoss.detach(), res_mean.detach(), res_var.detach()]).squeeze()
+        
+    def score_scaled_mean_only(self, dataset):
+        # For if one wants to train a mean net first
+        # NOTICE: Here X and Y are assumed already SCALED 
+        # Used for evaluation during training
+        # Weights are applied!!
+        X_ = dataset.X
+        Ypred_mean = self.mean_func(X_) 
+
+        # mse and r2
+        mse = torch.mean((Ypred_mean - dataset.Y)**2*dataset.W, dim=0)
+        r2 = 1 - mse / torch.mean(dataset.Y**2*dataset.W, dim=0) # over sample axis
+        
+        return np.array([mse.detach(), r2.detach()]).squeeze()
    
     # ''' These two needs to be defined after knowing how many variables we are using.
     #     It is a dictionary containing mean and variance, each should be of dimension 1 * Nfeatures
@@ -137,7 +151,7 @@ class FluxANNs(predictor):
     #     # It depends on output vector length and need to be implemented later
     #     raise NotImplementedError            
     
-    def fit(self, training_data, validating_data, training_paras, VERBOSE=True):
+    def fit(self, training_data, validating_data, training_paras, VERBOSE=True, TWOSTEPS=False):
         ''' training_paras shoud be a dictionary containing:
             {'batchsize':100, 'num_epochs':100, 'lr':5e-3}
         '''
@@ -152,11 +166,22 @@ class FluxANNs(predictor):
         validating_data_cp.Y = (validating_data.Y - self.Yscale['mean']) / self.Yscale['scale']
         
         t_start = time()
-        log = train (self.mean_func, self.var_func, training_data_cp, validating_data_cp, 
-                     self.score_scaled, **training_paras, FIXMEAN=False, VERBOSE=VERBOSE)
-        print(f'training took {time() - t_start:.2f} seconds, loss at last epoch %.4f' %log['LLLoss'][-1])
-        self.log = log 
-        return log
+        
+        if TWOSTEPS:
+            log1 = train_mse (self.mean_func, training_data_cp, validating_data_cp, 
+                              self.score_scaled_mean_only, **training_paras, VERBOSE=VERBOSE)
+            print(f'Mean training took {time() - t_start:.2f} seconds.')
+            log2 = train (self.mean_func, self.var_func, training_data_cp, validating_data_cp, 
+                         self.score_scaled, **training_paras, FIXMEAN=True, VERBOSE=VERBOSE)  
+            print(f'Variance training took {time() - t_start:.2f} seconds.')
+            self.log = [log1, log2]
+        else:
+            log = train (self.mean_func, self.var_func, training_data_cp, validating_data_cp, 
+                         self.score_scaled, **training_paras, FIXMEAN=False, VERBOSE=VERBOSE)
+            print(f'Training took {time() - t_start:.2f} seconds. Loss at last epoch %.4f' %log['LLLoss'][-1])
+            self.log = log       
+            
+        return self.log
     
     def evaluate_uniform (self):
         # A uniform grid flattened to make prediction maps

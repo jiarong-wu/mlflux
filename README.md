@@ -12,6 +12,10 @@ Functions to compute bulk in `mlflux/datafunc.py` are dependent on the [aerobulk
 
 ## File structure
 
+### mlflux folder
+`gotm.py` functions used for GOTM data file operations, including flux generation and simulation output processing.
+
+### notebooks folder
 `notebooks/processing/` data processing examples, specific to the in-situ flux datasets that are available to us. 
 
 * `data_test.ipynb`: a playground for testing data loading functions bulk flux computation. Some of these functions have been modularized into `mlflux/datafunc.py`. Now also include visualizations of PSD and ATOMIC campaigns and subsets of training and testing.
@@ -35,11 +39,10 @@ Functions to compute bulk in `mlflux/datafunc.py` are dependent on the [aerobulk
 * `NGBoost` and `ngboost _trian`: obsolete code with boosting algorithm.
 * `Regressor`: not yet filled. Maybe useful for multi-variate Gaussian training.
 
- 
 `notebooks/bulk/` code related to bulk algorithm computations.
 
 * `aerobulk`: initial test for the aerobulk package.
-* `bulk_global`: apply bulk formula to global CM2 outputs ((right now only one time slice).
+* `bulk_global`: apply bulk formula to global CM2 outputs (right now only one time slice).
 * `error_reproduce`: try to reproduce the error I see when applying aerobulk (TODO: send this to Julius).
 * `coare`
 
@@ -47,12 +50,15 @@ Functions to compute bulk in `mlflux/datafunc.py` are dependent on the [aerobulk
 
 * `global`: load global CM2 data (right now only one time slice), apply ANNs to compute fluxes, and compute metrics
 
+### gotm folder
 `gotm/` code related to [GOTM](https://gotm.net/portfolio/) model. 
 
 * `time_series` flux preparation and off-line evaluation
-* `analyses` output processing (in Hovmoller diagram format)
 * `fluxop` supposed to be flux preparation but haven't moved code from time_series to this one
-* some other output files 
+* `metrics.py` some metrics helper function. TO-DO: move this to mlflux/gotm.py
+* `ows_papa/` contains all the observational variables used to compute fluxes. The folder itself is not tracked in this repo but can be copied from [this stable version of GOTM code](https://github.com/gotm-model/code/archive/v5.2.1.tar.gz). The same code (v5.2.1) is used in Basilisk's S interface with GOTM.
   
-`others/` folder contains codes that I stole from other people. 
+### Others
+Codes that I stole from other people. 
+
 

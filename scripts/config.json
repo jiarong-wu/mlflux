@@ -1,0 +1,60 @@
+{
+  "datapath": "/home/jw8736/mlflux/data/Processed/",
+  "datafile": "psd_coare3p0_weight1_wave0.nc",
+  "ann_size": [
+    64,
+    32,
+    16
+  ],
+  "mean_activation": "no",
+  "var_activation": "exponential",
+  "ikeys": [
+    "U",
+    "tsea",
+    "tair",
+    "rh"
+  ],
+  "okeys": [
+    "taucx"
+  ],
+  "bkeys": [
+    "taubx"
+  ],
+  "NRAND": 5,
+  "RATIO": 0.2,
+  "WEIGHT": true,
+  "RESIDUAL": false,
+  "training_paras": {
+    "batchsize": 1000,
+    "num_epochs": 500,
+    "lr": 0.0005,
+    "gamma": 0.2,
+    "EARLYSTOPPING": false,
+    "patience": 20,
+    "factor": 0.5,
+    "max_epochs_without_improvement": 100
+  },
+  "two_steps": false,
+  "VERBOSE": true,
+  "compute_norm": true,
+  "norms": {
+    "imean": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "iscale": [
+      20,
+      20,
+      20,
+      100
+    ],
+    "omean": [
+      0
+    ],
+    "oscale": [
+      0.1
+    ]
+  }
+}

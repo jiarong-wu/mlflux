@@ -6,6 +6,12 @@ import xarray as xr
 import numpy as np
 from mlflux.gotm import read2010, predict, gen_epsilon_flux, write_stoch_flux
 
+# REMEMBER TO CHANGE ACCORDINGLY
+SHmodel_dir = '/home/jw8736/mlflux/saved_model/final/SH5_1/NW_tr2/'
+LHmodel_dir = '/home/jw8736/mlflux/saved_model/final/LH5_1/NW_tr2/'
+Mmodel_dir = '/home/jw8736/mlflux/saved_model/final/M5_1/NW_tr2/'
+rand = 4
+
 if __name__ == "__main__":
     # Define command-line arguments
     parser = argparse.ArgumentParser(description="Generate an ensemble of flux (heat or momentum) based on ANN prediction and write to specified folder using GOTM data file format.")
@@ -33,13 +39,19 @@ if __name__ == "__main__":
     ds = xr.Dataset.from_dataframe(df_)
     ds_uniform = ds.resample(datetime='H').interpolate('linear') # Interpolation non-uniform to hourly
     ds = ds_uniform.sel(datetime=slice(args.sd,args.ed))
-    print ('Coarsening inputs from hourly to %d hourly!' %args.dt) # Coarsening to dt
+    print ('Coarsening/Resampling inputs from hourly to %d hourly!' %args.dt) # Coarsening to dt
     dt_str = str(int(args.dt)) + 'H' 
     ds = ds.resample(datetime=dt_str).mean() 
+
+    # These are artificially assigned, for models that use these features
+    ds['zu'] = 10*ds['U']/ds['U']
+    ds['zt'] = 10*ds['U']/ds['U']
+    ds['zq'] = 10*ds['U']/ds['U']
+    ds = ds.rename({'t': 'tair', 'sst': 'tsea', 'q':'qair'})
     
     # Predict by ANNs 
-    from mlflux.predictor import Fluxdiff
-    ds = predict(ds)
+    from mlflux.predictor import FluxANNs
+    ds = predict(ds, SHmodel_dir, LHmodel_dir, Mmodel_dir, rand)
 
     # Write to file
     output_path = output_folder + f'{args.sd}_{args.ed}/'
@@ -48,7 +60,7 @@ if __name__ == "__main__":
 
     if args.flux == 'heat':
         Q_eps_ensem = gen_epsilon_flux (ds, FLUX='heat', T=args.corrtime, dt=args.dt, ENSEM=args.ensem)
-        mean = ds.Q_ann.values.reshape(-1,1) 
+        mean = (ds.qh_ann.values + ds.ql_ann.values + ds.lwr.values).reshape(-1, 1)
         eps_ensem = Q_eps_ensem.reshape(args.ensem, -1, 1) # of shape ensem*time*number_of_quantities_per_row
         bulk = ds.Q.values.reshape(-1,1) 
         write_stoch_flux (path=output_path, datetime=ds.datetime.values,
@@ -68,5 +80,5 @@ if __name__ == "__main__":
                           mean=mean, eps_ensem=eps_ensem, bulk=bulk, prefix='momentumflux_') 
 
     # Some optional moving data around
-    os.system(f'cp {output_folder}shared/* {output_path}')
+    # os.system(f'cp {output_folder}shared/* {output_path}')
 

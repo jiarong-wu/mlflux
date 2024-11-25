@@ -14,19 +14,24 @@ from torch.utils.data import Dataset, DataLoader
     ACTIVATION can be 'no' (for mean), 'square' or 'exponential' (for variance to ensure positivity)
 '''  
 class ANN(nn.Module):
-    def __init__(self, n_in, n_out, hidden_channels=[24, 24], degree=None, ACTIVATION='no'):
+    def __init__(self, n_in, n_out, hidden_channels=[24, 24], degree=None, ACTIVATION='no', dropout_rate=-1.):
 
         super().__init__()
         
         self.degree = degree # But not necessary for this application
+        self.dropout_rate = dropout_rate
     
         layers = []
         layers.append(nn.Linear(n_in, hidden_channels[0]))
         layers.append(nn.Sigmoid())
+        if dropout_rate > 0.:
+            layers.append(nn.Dropout(dropout_rate))
         
         for i in range(len(hidden_channels)-1):
             layers.append(nn.Linear(hidden_channels[i], hidden_channels[i+1]))
             layers.append(nn.Sigmoid())
+            if dropout_rate > 0.:
+                layers.append(nn.Dropout(dropout_rate))
             
         layers.append(nn.Linear(hidden_channels[-1], n_out))
         
@@ -201,17 +206,17 @@ class SynFluxDataset1D(Dataset):
 
 def train (mean_func, var_func, training_data, validating_data, evaluate_func,
            batchsize=100, num_epochs=100, lr=5e-3, gamma=0.2, FIXMEAN=True, VERBOSE=True, 
-           EARLYSTOPPING=False, patience=5, factor=0.1, max_epochs_without_improvement=10):
+           EARLYSTOPPING=False, patience=5, factor=0.1, max_epochs_without_improvement=10, weight_decay=None):
     
     # Put the training data into dataloader
-    dataloader = DataLoader(training_data, batch_size=batchsize, shuffle=True)
+    dataloader = DataLoader(training_data, batch_size=batchsize, shuffle=True, drop_last=True)
     
     # Whether we have fixed deterministic model or not
     if FIXMEAN:
-        optimizer = optim.Adam(var_func.parameters(), lr=lr)
+        optimizer = optim.Adam(var_func.parameters(), lr=lr, weight_decay=weight_decay)     
     else:
         optimizer = optim.Adam(list(var_func.parameters()) \
-            +list(mean_func.parameters()), lr=lr)
+            +list(mean_func.parameters()), lr=lr, weight_decay=weight_decay)
     
     # Can adjust the scheduler later
     if EARLYSTOPPING:
@@ -222,9 +227,10 @@ def train (mean_func, var_func, training_data, validating_data, evaluate_func,
     else:
         milestones = [int(num_epochs/2), int(num_epochs*3/4), int(num_epochs*7/8)] 
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
-    
-    
-    log = {'LLLoss': [], 'lr': [], 'training_scores': [], 'validating_scores': []}
+        
+    log = {'LLLoss': [], 'lr': [], 
+           't_mse': [], 't_r2':[], 't_LLLoss':[], 't_resmean':[], 't_resvar':[],
+           'v_mse': [], 'v_r2':[], 'v_LLLoss':[], 'v_resmean':[], 'v_resvar':[]}
     loss = nn.GaussianNLLLoss(reduction='none')
 
     # Training
@@ -234,7 +240,7 @@ def train (mean_func, var_func, training_data, validating_data, evaluate_func,
             optimizer.zero_grad()
             mean = mean_func(inputs)
             var = var_func(inputs)
-            likelihood = torch.sum(loss(targets, mean, var)*w)  
+            likelihood = torch.mean(loss(targets, mean, var)*w)  
             likelihood.backward() 
             optimizer.step()
             LLLoss += likelihood.item() * len(inputs)  # Returns the value of this tensor as a standard Python number         
@@ -243,21 +249,27 @@ def train (mean_func, var_func, training_data, validating_data, evaluate_func,
         log['LLLoss'].append(LLLoss)
         
         train_scores = evaluate_func(training_data)
-        log['training_scores'].append(train_scores)
+        log['t_mse'].append(train_scores[0])
+        log['t_r2'].append(train_scores[1])
+        log['t_LLLoss'].append(train_scores[2])
+        log['t_resmean'].append(train_scores[3]) # Best is 0
+        log['t_resvar'].append(train_scores[4]) # Best is 1
         
         val_scores = evaluate_func(validating_data)
-        log['validating_scores'].append(val_scores)
+        log['v_mse'].append(val_scores[0])
+        log['v_r2'].append(val_scores[1])
+        log['v_LLLoss'].append(val_scores[2])
+        log['v_resmean'].append(val_scores[3]) # Best is 0
+        log['v_resvar'].append(val_scores[4]) # Best is 1
 
         np.set_printoptions(precision=4)
-        print(train_scores)
-        print(val_scores)
         
         # For now just on output 1
         # We can also set early stopping based on mse, if performing regression
         # best_validation_mse = validating_scores[0] # stop if validating mse is minimized
         if EARLYSTOPPING:
-            if abs(val_scores[-1] - 1) < best_validation:
-                best_validation = abs(val_scores[-1] - 1) # stop when normalized variance on validating dataset is 1
+            if val_scores[2] < best_validation:
+                best_validation = val_scores[2] # stop when val loss (LLLoss) is not going down
                 epochs_without_improvement = 0
             else:
                 epochs_without_improvement += 1
@@ -268,7 +280,7 @@ def train (mean_func, var_func, training_data, validating_data, evaluate_func,
         if EARLYSTOPPING:
             # For now just on output 1 (in the case where there are multiple outputs)
             # scheduler.step(validating_scores[0]) # stop if validating mse is minimized
-            scheduler.step(abs(val_scores[-1] - 1)) # stop when normalized variance on validating dataset is 1
+            scheduler.step(val_scores[2]) 
         else: 
             scheduler.step()    
             
@@ -285,8 +297,70 @@ def train (mean_func, var_func, training_data, validating_data, evaluate_func,
         
     return log
 
-
+def train_mse (mean_func, training_data, validating_data, evaluate_func,
+           batchsize=100, num_epochs=100, lr=5e-3, gamma=0.2, VERBOSE=True, 
+           EARLYSTOPPING=False, patience=5, factor=0.1, max_epochs_without_improvement=10, weight_decay=None):
     
+    dataloader = DataLoader(training_data, batch_size=batchsize, shuffle=True, drop_last=True)    
+    optimizer = optim.Adam(mean_func.parameters(), lr=lr, weight_decay=weight_decay)
+
+    # Can adjust the scheduler later
+    if EARLYSTOPPING:
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=patience, 
+                                                         factor=factor, verbose=VERBOSE) # Learning rate decrease by 10 if patience is reached
+        best_validation = float('inf') # But also hard cutoff when mse keeps increasing
+        epochs_without_improvement = 0
+    else:
+        milestones = [int(num_epochs/2), int(num_epochs*3/4), int(num_epochs*7/8)] 
+        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
+
+    log = {'MSELoss': [], 'lr': [], 't_mse': [], 't_r2': [], 'v_mse': [],  'v_r2': []}
+
+    for epoch in range(num_epochs):
+        MSE_loss = 0.
+        for i, (inputs, targets, w) in enumerate(dataloader):
+            optimizer.zero_grad()
+            # Forward pass
+            mean = mean_func(inputs)
+            MSE = torch.mean((mean-targets)**2*w)
+            MSE.backward()
+            optimizer.step()
+            MSE_loss += MSE.item() * len(inputs)
+    
+        MSE_loss = MSE_loss / len(training_data)
+        log['MSELoss'].append(MSE_loss)
+    
+        if VERBOSE:
+            print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {MSE_loss:.4f}")
+
+        train_scores = evaluate_func(training_data)
+        log['t_mse'].append(train_scores[0])
+        log['t_r2'].append(train_scores[1])   
+        val_scores = evaluate_func(validating_data)
+        log['v_mse'].append(val_scores[0])
+        log['v_r2'].append(val_scores[1])
+
+        if EARLYSTOPPING:
+            if val_scores[0] < best_validation:
+                best_validation = val_scores[0] # stop when validation loss (MSE) is not going down
+                epochs_without_improvement = 0
+            else:
+                epochs_without_improvement += 1
+            if epochs_without_improvement >= max_epochs_without_improvement:
+                print(f'Early stopping triggered after {epoch+1} epochs.')
+                break
+                
+        if EARLYSTOPPING:
+            # For now just on output 1 (in the case where there are multiple outputs)
+            scheduler.step(val_scores[0]) # stop if MSE is minimized
+        else: 
+            scheduler.step()  
+        log['lr'].append(scheduler.get_last_lr()) 
+
+    return log
+
+
+
     
 
 

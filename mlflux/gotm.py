@@ -2,14 +2,91 @@
 import pandas as pd
 import numpy as np
 import torch
-from mlflux.predictor import Fluxdiff
+from mlflux.predictor import FluxANNs, Fluxdiff
 import xarray as xr
 import gc
 from tqdm import tqdm
 from scipy.interpolate import interp1d
+from mlflux.eval import open_case
+from dask.diagnostics import ProgressBar
 
 from scipy.interpolate import interp1d
 import gsw
+import os
+
+''' Read outputs '''
+from io import StringIO
+def read (filename, n1, n2, start_date):
+    with open(filename, 'r') as file:
+        lines = file.readlines()
+        
+    # Exclude the last two lines
+    lines_to_keep = lines[:-2]
+    # Join valid lines into a single string with newline characters
+    valid_data = "\n".join(lines_to_keep)
+    df = pd.read_csv(StringIO(valid_data), sep='\s+', header=None, 
+                     names=['t','z','ux','uy','T','S','nn','nu','taux','tauy','Q','swr'])
+    
+    # By default, reshape uses row-major (C-style) order, meaning it fills the array row by row.
+    time = pd.to_timedelta(df['t'][::n2], unit='s') # from second to hour 
+    datetime = start_date + time
+    depth = df['z'][:n2] # depth are 1 m apart
+    
+    ux = np.reshape(df['ux'],(n1,n2))
+    uy = np.reshape(df['uy'],(n1,n2))
+    T = np.reshape(df['T'],(n1,n2))
+    S = np.reshape(df['S'],(n1,n2))
+    taux = np.reshape(df['taux'],(n1,n2))[:,0]
+    tauy = np.reshape(df['tauy'],(n1,n2))[:,0]
+    Q = np.reshape(df['Q'],(n1,n2))[:,0]
+    swr = np.reshape(df['swr'],(n1,n2))
+    nn = np.reshape(df['nn'],(n1,n2))
+    nu = np.reshape(df['nu'],(n1,n2))
+
+    xrdf = xr.Dataset(
+        {'ux':(['t','z'], ux),
+        'uy':(['t','z'], uy),
+        'T':(['t','z'], T),
+        'S':(['t','z'], S),
+        'swr':(['t','z'], swr),
+        'nn':(['t','z'], nn), 
+        'nu':(['t','z'], nu),
+        'taux':(['t'], taux),
+        'tauy':(['t'], tauy),
+        'Q':(['t'], Q)}, 
+        coords={
+            't': datetime,
+            'z': depth
+        })
+
+    del(df)
+    gc.collect()
+    
+    return xrdf
+
+''' Read outputs of vertical profiles from monthly restarted GOTM outputs. 
+    Only need years because we need to put a time stamp. ''' 
+def read_monthly (filename_, year, n1, n2, DELETE=False):
+    ''' Auguments:
+        filename: file name with placeholder for year and month
+        n1: number of data points in time
+        n2: number of depth points
+    '''
+    # days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    ds_months = []
+
+    for i,month in enumerate(range(1,13)):
+        filename = filename_ %month
+        print(filename)
+        start_date = pd.Timestamp(year=year, month=month, day=1)
+        ds = read(filename, n1, n2, start_date)
+        ds = ds.where(ds.t.dt.month==month, drop=True)
+        ds_months.append(ds)
+        if DELETE:
+            os.remove(filename)
+    
+    ds_full = xr.concat(ds_months, dim="t")
+    return ds_full
 
 ''' interpolate to find where the depth is that any quantity profile is of value q '''
 def interp(zprofile, qprofile, q):
@@ -20,7 +97,7 @@ def interp(zprofile, qprofile, q):
 ''' Compute the mixed layer depth. 
     Temperature and salinity need to be names S and T respectively. '''
 def compute_MLD (ds, criterion='density'):
-    ds['rho_p'] = gsw.density.rho(ds.S, ds.T, 0) # potential density
+    ds['rho_p'] = gsw.density.rho(ds.S, ds.T, 0).compute() # potential density
     if criterion == 'temperature':
         diff = 0.2
         result = xr.apply_ufunc(
@@ -46,8 +123,8 @@ def compute_MLD (ds, criterion='density'):
             vectorize=True,                                
             dask='allowed'                       
         )
-    
-    ds['MLD'] = result
+        
+    ds['MLD'] = result.compute()
     return ds
 
 ''' Read observations of profiles. '''
@@ -157,36 +234,46 @@ from mlflux.predictor import ensem_predict
     filename: the shared part of saved model name
     X: inputs (should already be in torch tensor of size Nsample*Nfeature '''
 
+def Q (ds, model_SH, model_LH):
+    input_keys = model_SH.config['ikeys']
+    X = torch.tensor(np.hstack([ds[key].values.reshape(-1,1) for key in input_keys]).astype('float32'))    
+    mean = model_SH.pred_mean(X).detach().numpy().squeeze()
+    std =  model_SH.pred_var(X).detach().numpy().squeeze() ** 0.5
+    ds['qh_ann'] = mean*ds.Q/ds.Q
+    ds['qh_std'] = std*ds.Q/ds.Q
 
-def predict (ds):
-    model_dir = '/home/jw8736/mlflux/saved_model/one_output_anns/'  
-    # Assemble input X
-    input_keys = ['U','sst','t','rh','q']
+    input_keys = model_LH.config['ikeys']
     X = torch.tensor(np.hstack([ds[key].values.reshape(-1,1) for key in input_keys]).astype('float32'))
+    mean = model_LH.pred_mean(X).detach().numpy().squeeze()
+    std =  model_LH.pred_var(X).detach().numpy().squeeze() ** 0.5
+    ds['ql_ann'] = mean*ds.Q/ds.Q
+    ds['ql_std'] = std*ds.Q/ds.Q
 
-    # Three fluxes if they are separate ANNs
-    # TODO: make it compatible with ANNs of four outputs
-    model_names = ['Flux51_momentum_3layers_split','Flux51_sensible_3layers_split', 'Flux51_latent_3layers_split']
-    print ('Predicting fluxes and stds based on ANNs in directory ' + model_dir + '...')
+    return ds
+
+def tau (ds, model_M):
+    input_keys = model_M.config['ikeys']
+    X = torch.tensor(np.hstack([ds[key].values.reshape(-1,1) for key in input_keys]).astype('float32'))    
+    mean = model_M.pred_mean(X).detach().numpy().squeeze()
+    std =  model_M.pred_var(X).detach().numpy().squeeze() ** 0.5
+    ds['taux_ann'] = mean*ds.cos
+    ds['tauy_ann'] = mean*ds.sin
+    ds['taux_std'] = abs(std*ds.cos) # is this valid
+    ds['tauy_std'] = abs(std*ds.sin) # is this valid
+    return ds
     
-    for i, model_name in enumerate(model_names):
-        name = model_dir + model_name
-        mean, std, Sigma_mean, Sigma_std = ensem_predict(X=X, N=6, modelname=name)
-        mean = mean.squeeze(); std = std.squeeze(); 
-        Sigma_mean = Sigma_mean.squeeze(); Sigma_std = Sigma_std.squeeze()
-        if i == 0: # Momentum
-            ds['taux_ann'] = mean*ds.cos
-            ds['tauy_ann'] = mean*ds.sin
-            ds['taux_ann_sigma'] = abs(Sigma_mean*ds.cos) # is this valid
-            ds['tauy_ann_sigma'] = abs(Sigma_mean*ds.sin) # is this valid
-        elif i == 1: # Sensible heat
-            ds['qh_ann'] = mean*ds.Q/ds.Q
-            ds['qh_ann_sigma'] = Sigma_mean*ds.Q/ds.Q 
-        elif i == 2: # Latent heat 
-            ds['ql_ann'] = mean*ds.Q/ds.Q
-            ds['ql_ann_sigma'] = Sigma_mean*ds.Q/ds.Q 
+def predict (ds, SHmodel_dir, LHmodel_dir, Mmodel_dir, rand_seed):
+    model_name = 'model_rand%g.p' %rand_seed
+    SHmodel = open_case (SHmodel_dir, model_name)  
+    LHmodel = open_case (LHmodel_dir, model_name)
+    Mmodel = open_case (LHmodel_dir, model_name)
 
-    ds['Q_ann'] = ds.qh_ann + ds.ql_ann + ds.lwr
+    print ('Predicting fluxes and stds based on ANNs in \n SH directory ' + SHmodel_dir + 
+           '\n LH directory ' + LHmodel_dir + 
+           '\n M directory ' + Mmodel_dir + ' ...')
+    ds = Q(ds, SHmodel, LHmodel)
+    ds = tau(ds, Mmodel)
+
     print ('Finished!')
     return ds
 
@@ -227,15 +314,15 @@ def gen_epsilon_flux (ds, FLUX='heat', T=50, dt=3, ENSEM=100):
     alpha = 1 - dt/T
         
     if FLUX == 'heat':
-        interval = (ds.qh_ann_var + ds.ql_ann_var)**0.5
+        interval = (ds.qh_std**2 + ds.ql_std**2)**0.5
         mean = ds.qh_ann + ds.ql_ann
         
     elif FLUX == 'taux':
-        interval = ds.taux_ann_var**0.5
+        interval = ds.taux_std
         mean = ds.taux_ann 
 
     elif FLUX == 'tauy':
-        interval = ds.tauy_ann_var**0.5
+        interval = ds.tauy_std
         mean = ds.tauy_ann 
 
     eps_ensem = gen_epsilon (ENSEM=ENSEM, N=ds.sizes['datetime'], alpha=alpha, std=interval)
@@ -282,56 +369,6 @@ def write_stoch_flux (path, datetime, mean, eps_ensem, bulk, prefix='heatflux_an
     flux = bulk
     write_datetime (output_file, datetime, flux)
 
-
-''' Read outputs '''
-from io import StringIO
-def read (filename, n1, n2, start_date):
-    with open(filename, 'r') as file:
-        lines = file.readlines()
-        
-    # Exclude the last two lines
-    lines_to_keep = lines[:-2]
-    # Join valid lines into a single string with newline characters
-    valid_data = "\n".join(lines_to_keep)
-    df = pd.read_csv(StringIO(valid_data), sep='\s+', header=None, 
-                     names=['t','z','ux','uy','T','S','nn','nu','taux','tauy','Q','swr'])
-    
-    # By default, reshape uses row-major (C-style) order, meaning it fills the array row by row.
-    time = pd.to_timedelta(df['t'][::n2], unit='s') # from second to hour 
-    datetime = start_date + time
-    depth = df['z'][:n2] # depth are 1 m apart
-    
-    ux = np.reshape(df['ux'],(n1,n2))
-    uy = np.reshape(df['uy'],(n1,n2))
-    T = np.reshape(df['T'],(n1,n2))
-    S = np.reshape(df['S'],(n1,n2))
-    taux = np.reshape(df['taux'],(n1,n2))[:,0]
-    tauy = np.reshape(df['tauy'],(n1,n2))[:,0]
-    Q = np.reshape(df['Q'],(n1,n2))[:,0]
-    swr = np.reshape(df['swr'],(n1,n2))
-    nn = np.reshape(df['nn'],(n1,n2))
-    nu = np.reshape(df['nu'],(n1,n2))
-
-    xrdf = xr.Dataset(
-        {'ux':(['t','z'], ux),
-        'uy':(['t','z'], uy),
-        'T':(['t','z'], T),
-        'S':(['t','z'], S),
-        'swr':(['t','z'], swr),
-        'nn':(['t','z'], nn), 
-        'nu':(['t','z'], nu),
-        'taux':(['t'], taux),
-        'tauy':(['t'], tauy),
-        'Q':(['t'], Q)}, 
-        coords={
-            't': datetime,
-            'z': depth
-        })
-
-    del(df)
-    gc.collect()
-    
-    return xrdf
 
 
 def read_ensem (filename, ENSEM=10, n1=361, n2=200, 
