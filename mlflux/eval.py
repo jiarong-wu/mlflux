@@ -65,25 +65,49 @@ def plot_corr (ax, model, ds, subsample=None):
         vd.X = vd.X[w_index,:]; vd.Y = vd.Y[w_index,:]; vd.Bulk = vd.Bulk[w_index,:]
         
     Ypred_mean = model.pred_mean(vd.X)
+
+    cbulk = 'k'
+    cann = 'C1'
     if model.config['okeys'] == ['hlc']:
         ax.set_ylim([-250,50]); ax.set_xlim([-250,50])
-        ax.set_xlabel(r'$Q_{L,c} \; [W/m^2]$')
-        ax.set_ylabel(r'$Q_L \; [W/m^2]$')
+        ax.set_yticks([-250,-150,-50,0,50])
+        ax.set_xticks([-250,-150,-50,0,50])
+        ax.set_xlabel(r'Measurement $Q_{L,c} \; [W/m^2]$')
+        # ax.set_ylabel(r'Prediction $[W/m^2]$')
+        ax.plot(vd.Y, vd.Bulk, 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
+                label=r'$Q_{L,b}$ ($R^2$=%.2f)' %scores[-1], c=cbulk)
+        ax.plot(vd.Y, Ypred_mean.detach().numpy(), 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
+                label=r'$\mu_{Q_L}$ ($R^2$=%.2f)' %scores[1], c=cann)
     elif model.config['okeys'] == ['hsc']:
         X = vd.X[:,1] - vd.X[:,2]
         ax.set_ylim([-100,50]); ax.set_xlim([-100,50])
-        ax.set_xlabel('$Q_{S,c} \; [W/m^2]$'); ax.set_ylabel('$Q_S \; [W/m^2]$') 
+        ax.set_yticks([-100,-50,0,50]); ax.set_xticks([-100,-50,0,50])
+        ax.set_xlabel('Measurement  $Q_{S,c} \; [W/m^2]$')
+        # ax.set_ylabel('Prediction $[W/m^2]$') 
+        ax.plot(vd.Y, vd.Bulk, 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
+                label=r'$Q_{S,b}$ ($R^2$=%.2f)' %scores[-1], c=cbulk)
+        ax.plot(vd.Y, Ypred_mean.detach().numpy(), 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
+                label=r'$\mu_{Q_S}$ ($R^2$=%.2f)' %scores[1], c=cann)
     elif model.config['okeys'] == ['taucx']:
-        ax.set_ylim([0,0.8]); ax.set_xlim([0,0.8])
-        ax.set_xlabel(r'$\tau_{x,c} \; [N/m^2]$'); ax.set_ylabel(r'$\tau_x \; [N/m^2]$')    
+        ax.set_ylim([0,0.6]); ax.set_xlim([0,0.6])
+        ax.set_xticks([0,0.2,0.4,0.6]); ax.set_yticks([0,0.2,0.4,0.6])
+        ax.set_xlabel(r'Measurement $\tau_{x,c} \; [N/m^2]$')
+        # ax.set_ylabel(r'Prediction $[N/m^2]$')
+        ax.plot(vd.Y, vd.Bulk, 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
+                label=r'$\tau_{x,b}$ ($R^2$=%.2f)' %scores[-1], c=cbulk)
+        ax.plot(vd.Y, Ypred_mean.detach().numpy(), 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
+                label=r'$\mu_{\tau_x}$ ($R^2$=%.2f)' %scores[1], c=cann)
     elif model.config['okeys'] == ['taucy']:
         ax.set_ylim([-0.1,0.1]); ax.set_xlim([-0.1,0.1])
-        ax.set_xlabel(r'$\tau_{y,c} \; [N/m^2]$'); ax.set_ylabel(r'$\tau_y \; [N/m^2]$')    
+        ax.set_xlabel(r'Measurement $\tau_{y,c} \; [N/m^2]$')
+        # ax.set_ylabel(r'Prediction $[N/m^2]$')    
+        ax.plot(vd.Y, vd.Bulk, 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
+                label=r'$\tau_{y,b}$ (R2=%.2f)' %scores[-1], c=cbulk)
+        ax.plot(vd.Y, Ypred_mean.detach().numpy(), 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
+                label=r'$\mu_{\tau_y}$ (R2=%.2f)' %scores[1], c=cann)
            
-    ax.plot(vd.Y, vd.Bulk, 'o', mfc="None", markeredgewidth=0.5, markersize=4, label='Bulk (R2=%.3f)' %scores[-1], c='C1')
-    ax.plot(vd.Y, Ypred_mean.detach().numpy(), 'o', mfc="None", markeredgewidth=0.5, markersize=4, label='ANN (R2=%.3f)' %scores[1], c='C2')
     ax.plot(np.arange(-1000,1000), np.arange(-1000,1000), lw=0.5, ls='--', c='gray')
-    ax.legend(fancybox=False)
+    ax.legend(fancybox=False, bbox_to_anchor=(0, 1.22), loc='upper left', handletextpad=0.)
 
 ####### Plot residual ########
 def plot_res (ax, model, ds):
@@ -111,8 +135,7 @@ def plot_res (ax, model, ds):
     
     ax.plot(x, y, color='k', label='Gaussian')
     ax.legend(loc='upper left')
-    ax.text(2, 0.5, '$\mu_{\hat{\epsilon}} = %.2f$ \n $\sigma_{\hat{\epsilon}} = %.2f$ \n $wd = %.2f$' %(scores[2],scores[3], scores[4]), 
-            ha='center', va='center')
+    ax.text(2, 0.5, '$\mu_{\hat{\epsilon}} = %.2f$ \n $\sigma_{\hat{\epsilon}} = %.2f$ \n $wd = %.2f$' %(scores[2],scores[3], scores[4]), ha='center', va='center')
     
     ax.set_xlim([-4,4]); ax.set_ylim([0.0001,1])
 
