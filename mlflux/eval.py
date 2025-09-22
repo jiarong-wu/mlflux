@@ -158,6 +158,13 @@ def mse_r2_weighted(ypred, ytruth, weight):
     r2 = 1 - np.average((ypred-ytruth)**2, weights=weight, axis=0)/ytruth_var
     return mse.flatten(), r2.flatten()
 
+def mse_r2(ypred, ytruth):
+    mse = np.average((ypred-ytruth)**2, axis=0)
+    ytruth_mean = np.average(ytruth, axis=0)
+    ytruth_var = np.average((ytruth-ytruth_mean)**2, axis=0)
+    r2 = 1 - np.average((ypred-ytruth)**2, axis=0)/ytruth_var
+    return mse.flatten(), r2.flatten()
+
 ####### Scores related to the normalized distribution shape ##########
 def distribution_weighted(ypred, ytruth, yvar, weight):
     res_norm = (ypred - ytruth) / yvar**0.5

@@ -7,9 +7,9 @@ import numpy as np
 from mlflux.gotm import read2010, predict, gen_epsilon_flux, write_stoch_flux
 
 # REMEMBER TO CHANGE ACCORDINGLY
-SHmodel_dir = '/home/jw8736/mlflux/saved_model/final/SH5_1/NW_tr2/'
-LHmodel_dir = '/home/jw8736/mlflux/saved_model/final/LH5_1/NW_tr2/'
-Mmodel_dir = '/home/jw8736/mlflux/saved_model/final/M5_1/NW_tr2/'
+SHmodel_dir = '/scratch/jw8736/mlflux/saved_model/final/SH5_1/NW_tr2/'
+LHmodel_dir = '/scratch/jw8736/mlflux/saved_model/final/LH5_1/NW_tr2/'
+Mmodel_dir = '/scratch/jw8736/mlflux/saved_model/final/M5_1/NW_tr2/'
 rand = 4
 
 if __name__ == "__main__":

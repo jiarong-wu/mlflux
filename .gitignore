@@ -15,3 +15,4 @@ slurm-*.out
 *~
 gotm/ows_papa/
 plots/
+.ipynb_checkpoints/*

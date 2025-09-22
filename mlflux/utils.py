@@ -55,6 +55,19 @@ def qsat(t,p):
     es = es * (1.0007 + p2 * 3.46e-6)
     return es
 
+def qsea(sst,p):
+    """
+    usage: qs = qsea(sst,p)
+    Returns saturation specific humidity (g/kg) at sea surface
+    given sst(C) and p(mb) input of any numeric type.
+
+    Returns ndarray float for any numeric object input.
+    """
+    ex = qsat(sst,p) # returns ex as ndarray float
+    es = 0.98 * ex
+    qs = 622 * es /(p - 0.378 * es)
+    return qs
+
 def rhcalc(t,p,q):
     ''' TAKEN FROM COARE PACKAGE. usage: rh = rhcalc(t,p,q)
         Returns RH(%) for given t(C), p(mb) and specific humidity, q(kg/kg)
@@ -125,3 +138,4 @@ def create_animation(fun, idx, filename='my-animation.gif', dpi=200, FPS=18, loo
         save_all=True,
         duration=duration,
         loop=loop)
+

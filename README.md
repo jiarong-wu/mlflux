@@ -13,7 +13,20 @@ Functions to compute bulk in `mlflux/datafunc.py` are dependent on the [aerobulk
 ## File structure
 
 ### mlflux folder
+`ann.py` define ANN architecture.
+
+`eval.py` evaluates statistical performances.
+
 `gotm.py` functions used for GOTM data file operations, including flux generation and simulation output processing.
+
+### scripts folder
+`read_monthly.py` reads gotm outputs.
+
+`slurm_read.sh` slurm script to submit `read_monthly.py`.
+
+`training` trains NN.
+
+`slurm_array.sh` slurm script to submit array jobs for training with different random seeds.
 
 ### notebooks folder
 `notebooks/processing/` data processing examples, specific to the in-situ flux datasets that are available to us. 
@@ -56,7 +69,7 @@ Functions to compute bulk in `mlflux/datafunc.py` are dependent on the [aerobulk
 * `time_series` flux preparation and off-line evaluation
 * `fluxop` supposed to be flux preparation but haven't moved code from time_series to this one
 * `metrics.py` some metrics helper function. TO-DO: move this to mlflux/gotm.py
-* `ows_papa/` contains all the observational variables used to compute fluxes. The folder itself is not tracked in this repo but can be copied from [this stable version of GOTM code](https://github.com/gotm-model/code/archive/v5.2.1.tar.gz). The same code (v5.2.1) is used in Basilisk's S interface with GOTM.
+* `ows_papa/` contains all the observational variables used to compute fluxes. The folder itself is not tracked in this repo but can be copied from [this stable version of GOTM code](https://github.com/gotm-model/code/archive/v5.2.1.tar.gz). The same code (v5.2.1) is used in Basilisk's S interface with GOTM. (When running gotm, some of these files need to be renamed, e.g. heat_flux_papa.dat -> heatflux.dat.)
   
 ### Others
 Codes that I stole from other people. 
