@@ -5,6 +5,7 @@
 *.pyc
 *.dat
 *.txt
+*.pdf
 data/
 others/
 saved_model/
