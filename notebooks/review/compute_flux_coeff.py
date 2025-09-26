@@ -12,7 +12,7 @@ from mlflux.COARE.COARE3p6 import coare36vn_zrf_et
 ### Load ANN?
 # For now ANN are loaded outside 
 
-### Compute fluxes
+### Compute fluxes (with minimal amount of required input variables)
 @torch.no_grad
 def compute(X, label='ANN'):
     global model_LH, model_SH, model_M
@@ -84,9 +84,11 @@ def add_field(ds, model_M, model_Mcross, model_SH, model_LH):
     return ds
 
 ### Compute transfer coefficients and append fields as CD, CT, CE, MOL, etc.
+### With fluxes already pre-computed
 def compute_coeff(ds):
     # physical properties
     # Le = 2.5 * 10 ** 6
+    # Check all the required fields exist
     Rgas = 287.1
     kappa = 0.4
     g = 9.8
@@ -114,7 +116,40 @@ def compute_coeff(ds):
     # ds['ann_CT'] = ds['SH'] / ds['U'] / (ds['tair'] - ds['tsea']) / ds['cpa'] / ds['rhoair']
     # ds['bulk_CT'] = ds['hsb'] / ds['U'] / (ds['tair'] - ds['tsea']) / ds['cpa'] / ds['rhoair']
     # ds['CT'] = ds['hsc'] / ds['U'] / (ds['tair'] - ds['tsea']) / ds['cpa'] / ds['rhoair']
+    # ds['ann_CD'] = abs(ds['M']) / ds['U']**2 / ds['rhoair']
     ds['ann_CD'] = (ds['M']**2 + ds['M_cross']**2)**0.5 / ds['U']**2 / ds['rhoair']
     ds['bulk_CD'] = ds['taubx'] / ds['U']**2 / ds['rhoair']
     ds['CD'] = ds['taucx'] / ds['U']**2 / ds['rhoair']
     return ds
+
+def compute_ds(ds):
+    global model_LH, model_SH, model_M
+    required_fields = ['U', 'tsea', 'tair', 'rh', 'p']
+    optional_fields = ['zq', 'zt', 'zu']
+    if not all(field in ds for field in required_fields):
+        missing = [field for field in required_fields if field not in ds]
+        raise ValueError(f"Missing required fields in dataset: {missing}")
+    if ds['p'].mean() not in range(60000, 150000):
+        print(f"Warning: Unusual pressure values detected, mean p = {ds['p'].mean().item()}, check units!")
+    if ds['rh'].mean() not in range(0, 120):
+        print(f"Warning: Unusual relative humidity values detected, mean rh = {ds['rh'].mean().item()}, check units!")
+        
+    vd = RealFluxDataset(ds, input_keys=model_M.config['ikeys'], 
+                         output_keys=model_M.config['okeys'], bulk_keys=model_M.config['bkeys'])
+    LH = model_LH.pred_mean(vd.X)
+    LH_var = model_LH.pred_var(vd.X)   
+    SH = model_SH.pred_mean(vd.X)
+    SH_var = model_SH.pred_var(vd.X)
+    M = model_M.pred_mean(vd.X)
+    M_var = model_M.pred_var(vd.X)
+    M_cross = model_Mcross.pred_mean(vd.X)
+    M_cross_var = model_Mcross.pred_var(vd.X)
+
+    ds["LH"] = xr.DataArray(LH.detach().numpy().squeeze(), dims=("time"))
+    ds["LH_var"] = xr.DataArray(LH_var.detach().numpy().squeeze(), dims=("time"))
+    ds["SH"] = xr.DataArray(SH.detach().numpy().squeeze(), dims=("time"))
+    ds["SH_var"] = xr.DataArray(SH_var.detach().numpy().squeeze(), dims=("time"))
+    ds["M"] = xr.DataArray(M.detach().numpy().squeeze(), dims=("time"))
+    ds["M_var"] = xr.DataArray(M_var.detach().numpy().squeeze(), dims=("time"))
+    ds["M_cross"] = xr.DataArray(M_cross.detach().numpy().squeeze(), dims=("time"))
+    ds["M_cross_var"] = xr.DataArray(M_cross_var.detach().numpy().squeeze(), dims=("time"))

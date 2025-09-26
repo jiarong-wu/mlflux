@@ -52,11 +52,31 @@ def convert_mat_to_xarray(mat_data):
     ds_ooi = xr.Dataset(data_vars=data_vars, coords=coords)
     return ds_ooi
 
+# Clean and preprocess the dataset
+# Convert units, compute fluxes, rename variables, drop NaNs
+# stress	Bulk stress (N/m2)
+# shf		Bulk sensible heat flux (W/m2)
+# lhf		Bulk latent heat flux (W/m2)
+# bhf		Bulk virtual temperature flux (W/m2) or buoyancy flux
+# bshf	Bulk sonic temperature flux (W/m2)
+# moL		Bulk Monin-Obukhov length (m)
 def clean (ds):
     ds = ds.where(ds.Sbytes==0, drop=True)
-    ds['weight'] = ds['Beta'] / ds['Beta'] 
     ds['Pair'] = ds['Pair'] * 100.
-    ds['SH'] = ds['WT']*ds['cpa']*ds['rhoair']
+    ds['hsc'] = -ds['WT']*ds['cpa']*ds['rhoair']
+    ds['taucx'] = -ds['UW']*ds['rhoair']
+    ds['taucy'] = -ds['VW']*ds['rhoair']
+    ds['taubx'] = ds['stress']; ds['hsb']= -ds['shf']; ds['hlb']=-ds['lhf']
+    # rename some variables
+    # seems like shf is sensible heat flux but bshf is sonic temperature flux
+    # Sonic temperature is virtual temperature (corrected with 1+0.61q)
+    ds = ds.rename({'Ue':'U', 'Tair':'tair', 'Tsea':'tsea', 'RH':'rh', 'Pair':'p'})
+    # keep only useful variables
+    keep_vars = ['U', 'tair', 'tsea', 'rh', 'p', 'zq', 'zt', 'zu', 
+                 'taucx', 'taucy', 'hsc', 'taubx', 'hsb', 'hlb', 'yyyy', 'yday']
+    ds = ds[keep_vars]
+    ds = ds.dropna(dim='dim', how='any')
+    # ds = ds.assign(weight=xr.DataArray(np.ones(ds.dims['dim'])/ds.sizes['dim'], dims=['dim']))
     return ds
 
 if __name__ == "__main__":
