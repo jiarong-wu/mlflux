@@ -4,6 +4,7 @@
 .DS_Store
 *.pyc
 *.dat
+!gotm/ows_papa/*.dat
 *.txt
 *.pdf
 data/
@@ -14,6 +15,5 @@ saved_model/
 */*/.ipynb_checkpoints/
 slurm-*.out
 *~
-gotm/ows_papa/
 plots/
 .ipynb_checkpoints/*

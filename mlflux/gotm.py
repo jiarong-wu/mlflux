@@ -197,15 +197,15 @@ def read_vars (path, files, datetimeformat='%Y/%m/%d %H:%M:%S'):
 from mlflux.utils import rhcalc
 def read2010 (path, datetimeformat='%Y/%m/%d %H:%M:%S'):
 
-    file_sst = {'filename':'sst_hourly.dat', 'columns':['sst']} # in degree C
+    file_sst = {'filename':'sst.dat', 'columns':['sst']} # in degree C
     file_wind = {'filename':'u10.dat', 'columns':['ux','uy']} # in m/s
     file_tair = {'filename':'airt.dat', 'columns':['t']} # in degree C
     file_tp = {'filename':'airp.dat', 'columns':['p']} # in Pa
     file_hum = {'filename':'hum.dat', 'columns':['q']} # in kg/kg
     
-    file_tau = {'filename':'momentum_flux_papa.dat', 'columns':['taux','tauy']} 
-    file_Q = {'filename':'heat_flux_papa.dat', 'columns':['Q']}  # this is the total Q with qh+ql+lwr
-    file_swr = {'filename':'swr_papa.dat', 'columns':['swr']}
+    file_tau = {'filename':'momentumflux.dat', 'columns':['taux','tauy']} 
+    file_Q = {'filename':'heatflux.dat', 'columns':['Q']}  # this is the total Q with qh+ql+lwr
+    file_swr = {'filename':'swr.dat', 'columns':['swr']}
     file_lwr = {'filename':'lwr.dat', 'columns':['lwr']}
     
     files = [file_sst, file_wind, file_tair, file_tp, file_hum, file_tau, file_Q, file_swr, file_lwr]

@@ -4,12 +4,13 @@ List of files used for running the code (profile and baseline fluxes):
 - sprof_papa_hourly.dat -> sprof.dat
 - tprof_papa_hourly.dat -> tprof.dat
 - swr_papa.dat -> swr.dat
-- swr_papa.dat -> lwr.dat
+- lwr_papa.dat -> lwr.dat
 - heat_flux_papa.dat -> heatflux.dat
 - momentum_flux_papa.dat -> momentumflux.dat
+- sst_hourly.dat -> sst.dat
 
 List of meteo variables used to generate fluxes:
-- sst_hourly.dat
+- sst.dat
 - u10.dat
 - airt.dat
 - airp.dat
@@ -35,3 +36,5 @@ qcc -disable-dimensions -autolink -O2 -DMTRACE=3 -g -Wall -pipe -D_FORTIFY_SOURC
 # which calls job.sh that does monthly restart and multiple forcing files 
 sbatch slurm.sh 
 ```
+
+Copy slurm scripts and executables into the desired directory (where the generated flux sequence sits) and run. For example on Greene it is `/scratch/jw8736/gotm/ensem/2011-01-01_2020-01-01/`. Copy the other fluxes as well (see above).
