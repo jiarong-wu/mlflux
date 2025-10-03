@@ -1,5 +1,4 @@
 from mlflux.utils import save_ds_compressed
-from mlflux.gotm import read_monthly
 from mlflux.gotm import compute_MLD
 import numpy as np
 import xarray as xr

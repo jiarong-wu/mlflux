@@ -38,3 +38,5 @@ sbatch slurm.sh
 ```
 
 Copy slurm scripts and executables into the desired directory (where the generated flux sequence sits) and run. For example on Greene it is `/scratch/jw8736/gotm/ensem/2011-01-01_2020-01-01/`. Copy the other fluxes as well (see above).
+
+NOTICE: The way that file I/O is handled now is paired with 3 hourly flux input. (Change i+=1 or i+=3 for linearly interpolated or uniform flux within the 3 hours, but the lines of the files themselves need to be 3 hourly seperated. Otherwise it wouldn't work.)

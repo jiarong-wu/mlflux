@@ -20,7 +20,7 @@ Functions to compute bulk in `mlflux/datafunc.py` are dependent on the [aerobulk
 `gotm.py` functions used for GOTM data file operations, including flux generation and simulation output processing.
 
 ### scripts folder
-`read_monthly.py` reads gotm outputs.
+`read_monthly.py` reads gotm outputs. (Need to manually change folder and other info.)
 
 `slurm_read.sh` slurm script to submit `read_monthly.py`.
 

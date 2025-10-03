@@ -110,6 +110,7 @@ Jerlov-type extinction of the short-wave radiation flux. */
 The starting date. */
 
 int syear = 1961, smonth = 3, sday = 25;
+double timestep = 3600;
 
 int main(int argc, char * argv[])
 {
@@ -117,18 +118,20 @@ int main(int argc, char * argv[])
     syear = atoi (argv[1]);
     smonth = atoi (argv[2]);
     sday = atoi (argv[3]);
-    dt = atoi(argv[4])*60.; // convert time step from minutes to seconds
+    timestep = atoi(argv[4])*60.; // convert time step from minutes to seconds
   }
   else {
     printf ("Not enough arguments! Usage: %s [year month day dt]\n", argv[0]);
   }
+  // debugging
+  // fprintf(stdout, "Specified arguments dt=%g \n", timestep); 
   foreach_dimension()
     periodic (right);
-  size (100e3);
-  origin (- 145. - L0/2., 50. - L0/2.);
+  size (100e3); // (Jiarong: A 100 km by 100 km box?)
+  origin (- 145. - L0/2., 50. - L0/2.); // (Jiarong: this is random?)
   G = 9.81;
   N = 1;
-  nl = 250;
+  nl = 200; // (Jiarong: changed from 250 to 200)
   CFL = CFL_H = HUGE;
   
   /**
@@ -150,7 +153,7 @@ int main(int argc, char * argv[])
   turbulence_turb_method = 99;	// default = 0
   kpp_kpp_sbl = true;	        // default = 0
   kpp_kpp_bbl = true;	        // default = 0
-  kpp_kpp_interior = false;      // default = 0
+  kpp_kpp_interior = false;      // default = 0 (Jiarong: important to turn off to avoid spurious mixing!!)
   kpp_ric = 0.3;      	        // default = 0
 #else // k-epsilon
   turbulence_iw_model = 2;	// default = 0 // no effect whatsoever!!
@@ -270,9 +273,9 @@ event init (i = 0)
   if (turbulence_turb_method != 99)
     turbulence_report_model();
   foreach() {
-    zb[] = - 250.;
+    zb[] = - 200.; // (Jiarong: changed from 250 to 200, sprof has only till 200 m)
     foreach_layer()
-      h[] = 250./nl;
+      h[] = 200./nl;
     init_profile (point, "sprof.dat", syear, smonth, sday, S);
     init_profile (point, "tprof.dat", syear, smonth, sday, T);
   }
@@ -281,9 +284,9 @@ event init (i = 0)
 /**
 ## Timestep
 
-Set to one hour, as in the GOTM test case. */
+Set to time step defined by argument, as in the GOTM test case. */
  
-event timestep (t += 3600);
+event timestep (t += timestep);
 
 /**
 ## Surface fluxes
@@ -292,25 +295,31 @@ event timestep (t += 3600);
 
 vector tau[];
 
-event input_momentum_flux (i += 3)
+event input_momentum_flux (t += 3600) // (Jiarong: this should match input time interval 1hr)
 {
+  // debugging
+  // fprintf(stdout, "Reading momentum dt=%g \n", dt);
   static FILE * fp = fopen ("momentumflux.dat", "r");
-  static coord hfp, hfn;    
-  // the file is sampled at 3 hours intervals
+  coord hf;
+  // static coord hfp, hfn;    
+  // the file is sampled at 3 hours intervals (old ones)
   // 1959/09/14 00:00:00 8.390094e-02 -2.305159e-01
+  // new file is sampled at 1 hour interval 
+  // 2010-01-01 00:00:00 ... ...
   if (i == 0) {
     int y, m, d;
-    while (fscanf (fp, "%d-%d-%d %*s %lf %lf", &y, &m, &d, &hfn.x, &hfn.y) == 5
+    while (fscanf (fp, "%d-%d-%d %*s %lf %lf", &y, &m, &d, &hf.x, &hf.y) == 5
 	   && (y < syear || m < smonth || d < sday)); // skip all the points before starting
   }
-  int nhour = t / 3600;
-  if (nhour % 3 == 0) {
-    hfp = hfn;
-    fscanf (fp, "%*s %*s %lf %lf", &hfn.x, &hfn.y);
-  }
-  coord hf;
-  foreach_dimension()
-    hf.x = hfp.x + (i % 3)/3.*(hfn.x - hfp.x);
+  // int nhour = t / 3600;
+  // if (nhour % 3 == 0) { // (Jiarong: this assumes that in the data file, lines have 3 hour intervals.)
+  //   hfp = hfn;
+  //   fscanf (fp, "%*s %*s %lf %lf", &hfn.x, &hfn.y); // (Jiarong: pointer moves to the next line.)
+  // }
+  // foreach_dimension()
+  //   hf.x = hfp.x + (i % 3)/3.*(hfn.x - hfp.x);
+  else
+    fscanf (fp, "%*s %*s %lf %lf", &hf.x, &hf.y); // (Jiarong: pointer moves to the next line.)
   foreach()
     foreach_dimension()
       tau.x[] = hf.x;
@@ -322,22 +331,17 @@ event input_momentum_flux (i += 3)
 
 scalar heat_flux[];
 
-event input_heat_flux (i += 1)
+event input_heat_flux (t += 3600) // (Jiarong: this should match input time interval 1hr)
 {
-  static FILE * fp = fopen ("heatflux.dat", "r");
-  static double hfp, hfn;    
-  // the file is sampled at 3 hours intervals
+  static FILE * fp = fopen ("heatflux.dat", "r");   
+  static double hf;
   if (i == 0) {
     int y, m, d;
-    while (fscanf (fp, "%d-%d-%d %*s %lf", &y, &m, &d, &hfn) == 4 &&
+    while (fscanf (fp, "%d-%d-%d %*s %lf", &y, &m, &d, &hf) == 4 &&
 	   (y < syear || m < smonth || d < sday));
   }
-  int nhour = t / 3600;
-  if (nhour % 3 == 0) {
-    hfp = hfn;
-    fscanf (fp, "%*s %*s %lf", &hfn);
-  }
-  double hf = hfp + (i % 3)/3.*(hfn - hfp);
+  else
+    fscanf (fp, "%*s %*s %lf", &hf);
   foreach()
     heat_flux[] = hf;
   airsea_heat_flux = heat_flux;
@@ -355,22 +359,17 @@ it is not used by default. */
 
 scalar swr_flux[];
 
-event input_swr_flux (i += 1)
+event input_swr_flux (t += 3600) // (Jiarong: this should match input time interval 1hr)
 {
   static FILE * fp = fopen ("swr.dat", "r");
-  static double hfp, hfn;    
-  // the file is sampled at 3 hours intervals
+  static double hf; 
   if (i == 0) {
     int y, m, d;
-    while (fscanf (fp, "%d-%d-%d %*s %lf", &y, &m, &d, &hfn) == 4 &&
+    while (fscanf (fp, "%d-%d-%d %*s %lf", &y, &m, &d, &hf) == 4 &&
 	   (y < syear || m < smonth || d < sday));
   }
-  int nhour = t / 3600;
-  if (nhour % 3 == 0) {
-    hfp = hfn;
-    fscanf (fp, "%*s %*s %lf", &hfn);
-  }
-  double hf = hfp + (i % 3)/3.*(hfn - hfp);
+  else
+    fscanf (fp, "%*s %*s %lf", &hf);
 
 #if 0  
   int julianday, year = 1959, month = 9, day = 14;
@@ -405,16 +404,16 @@ void profile (FILE * fp)
   foreach() {
     double z = zb[];
     foreach_layer()
-      fprintf (fp, "%g %g %g %g %g %g %g %g %g %g %g\n", t, z + h[]/2.,
+      fprintf (fp, "%g %g %g %g %g %g %g %g %g %g %g %g\n", t, z + h[]/2.,
 	       u.x[], u.y[], T[], S[],
 	       meanflow_nn.a[point.l + 1], turbulence_nuh.a[point.l + 1],
-         tau.x[], tau.y[], heat_flux[]),
+         tau.x[], tau.y[], heat_flux[], swr_flux[]),
       z += h[];
   }
   fprintf (fp, "\n");  
 }
 
-event profiles (t += 12*3600)
+event profiles (t += 3600)
   profile (stdout);
 
 event end (t = 31*24*3600)

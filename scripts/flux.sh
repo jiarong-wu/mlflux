@@ -7,8 +7,8 @@
 
 # TODO: trouble shoot - somehow the generation of flux is not writing when multiple years. Need to trouble shoot...
 
-ENSEM=2
-IPATH=/home/jw8736/code-5.2.1/cases/ows_papa/
+ENSEM=20
+IPATH=/scratch/jw8736/mlflux/gotm/ows_papa/
 OPATH=/scratch/jw8736/gotm/ensem/
 
 # python gen_flux.py --sd=2012-03-21 --ed=2012-05-20 --corrtime=60 --dt=3 --ensem=$ENSEM --flux=heat -i=$IPATH -o=$OPATH
@@ -25,4 +25,4 @@ OPATH=/scratch/jw8736/gotm/ensem/
 
 # Generate the full time 
 python gen_flux.py --sd=2011-01-01 --ed=2020-01-01 --corrtime=60 --dt=1 --ensem=$ENSEM --flux=heat -i=$IPATH -o=$OPATH
-# python gen_flux.py --sd=2011-01-01 --ed=2020-01-01 --corrtime=15 --dt=1 --ensem=$ENSEM --flux=momentum -i=$IPATH -o=$OPATH
+# python gen_flux.py --sd=2011-01-01 --ed=2020-01-01 --corrtime=15 --dt=3 --ensem=$ENSEM --flux=momentum -i=$IPATH -o=$OPATH

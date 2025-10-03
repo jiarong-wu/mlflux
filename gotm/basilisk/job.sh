@@ -1,3 +1,4 @@
+#!/bin/bash
 method=${1} # method = {kpp,kepsilon}
 dt=${2} # time step in minutes
 year=${3} # year 
@@ -9,7 +10,7 @@ cp ${EXE} ${OUTFOLDER}
 cp sprof.dat ${OUTFOLDER}
 cp tprof.dat ${OUTFOLDER}
 cp swr.dat ${OUTFOLDER}
-cp momentumflux.dat ${OUTFOLDER}
+cp momentumflux.dat ${OUTFOLDER} # for perturbed heat flux momentum is kept the same
 cd ${OUTFOLDER}
 
 for i in {1..20}; do

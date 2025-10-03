@@ -55,7 +55,7 @@ if __name__ == "__main__":
     ds = predict(ds, SHmodel_dir, LHmodel_dir, Mmodel_dir, rand)
 
     # Write to file
-    output_path = output_folder + f'{args.sd}_{args.ed}/'
+    output_path = output_folder + f'{args.sd}_{args.ed}_{args.flux}/'
     print(output_path)
     os.system(f'mkdir -p {output_path}')
 
@@ -63,15 +63,14 @@ if __name__ == "__main__":
         Q_eps_ensem = gen_epsilon_flux (ds, FLUX='heat', T=args.corrtime, dt=args.dt, ENSEM=args.ensem)
         mean = (ds.qh_ann.values + ds.ql_ann.values + ds.lwr.values).reshape(-1, 1)
         eps_ensem = Q_eps_ensem.reshape(args.ensem, -1, 1) # of shape ensem*time*number_of_quantities_per_row
-        # Old version: take bulk from GOTM
-        # bulk = ds.Q.values.reshape(-1,1) 
-        # New version: compute bulk assuming certain height
-        ql, qh, taux, tauy, evap = noskin_np(sst=ds.tsea.to_numpy()+273.15, t_zt=ds.tair.to_numpy()+273.15, 
-            hum_zt=ds.qair.to_numpy(), u_zu=ds.ux.to_numpy(), 
-            v_zu=ds.uy.to_numpy(), slp=ds.p.to_numpy(), 
-            algo='coare3p6', zt=18., zu=15., niter=6, input_range_check=True)
-        print(ql.shape)
-        bulk = (ql + qh + ds.lwr.values).reshape(-1,1)
+        ### Old version: take bulk from GOTM
+        bulk = ds.Q.values.reshape(-1,1) 
+        ### New version: compute bulk assuming certain height
+        # ql, qh, taux, tauy, evap = noskin_np(sst=ds.tsea.to_numpy()+273.15, t_zt=ds.tair.to_numpy()+273.15, 
+        #     hum_zt=ds.qair.to_numpy(), u_zu=ds.ux.to_numpy(), 
+        #     v_zu=ds.uy.to_numpy(), slp=ds.p.to_numpy(), 
+        #     algo='coare3p6', zt=18., zu=15., niter=6, input_range_check=True)
+        # bulk = (ql + qh + ds.lwr.values).reshape(-1,1)
         write_stoch_flux (path=output_path, datetime=ds.datetime.values,
                           mean=mean, eps_ensem=eps_ensem, bulk=bulk, prefix='heatflux_')
 
@@ -82,14 +81,15 @@ if __name__ == "__main__":
         mean2 = ds.tauy_ann.values
         mean = np.concatenate((mean1[..., np.newaxis], mean2[..., np.newaxis]), axis=-1)
         eps_ensem = np.concatenate((taux_eps_ensem[..., np.newaxis], tauy_eps_ensem[..., np.newaxis]), axis=-1)  
-        # bulk1 = ds.taux.values
-        # bulk2 = ds.tauy.values
-        # bulk = np.concatenate((bulk1[..., np.newaxis], bulk2[..., np.newaxis]), axis=-1)
-        ql, qh, taux, tauy, evap = noskin_np(sst=ds.tsea.to_numpy()+273.15, t_zt=ds.tair.to_numpy()+273.15, 
-            hum_zt=ds.qair.to_numpy(), u_zu=ds.ux.to_numpy(), 
-            v_zu=ds.uy.to_numpy(), slp=ds.p.to_numpy(), 
-            algo='coare3p6', zt=18., zu=15., niter=6, input_range_check=True)
-        print(taux.shape)
+        ### Old version
+        bulk1 = ds.taux.values
+        bulk2 = ds.tauy.values
+        bulk = np.concatenate((bulk1[..., np.newaxis], bulk2[..., np.newaxis]), axis=-1)
+        ### New version
+        # ql, qh, taux, tauy, evap = noskin_np(sst=ds.tsea.to_numpy()+273.15, t_zt=ds.tair.to_numpy()+273.15, 
+        #     hum_zt=ds.qair.to_numpy(), u_zu=ds.ux.to_numpy(), 
+        #     v_zu=ds.uy.to_numpy(), slp=ds.p.to_numpy(), 
+        #     algo='coare3p6', zt=18., zu=15., niter=6, input_range_check=True)
         bulk = np.concatenate((taux[..., np.newaxis], tauy[..., np.newaxis]), axis=-1)
         write_stoch_flux (path=output_path, datetime=ds.datetime.values, 
                           mean=mean, eps_ensem=eps_ensem, bulk=bulk, prefix='momentumflux_') 

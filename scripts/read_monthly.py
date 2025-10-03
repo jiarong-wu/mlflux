@@ -6,16 +6,17 @@ import numpy as np
 
 
 if __name__ == "__main__":
-
-    masterdir = '/scratch/jw8736/gotm/ensem/2011-01-01_2020-01-01/'
-    method = 'kpp' # {'kepsilon', 'kpp'}
+    masterdir = '/scratch/jw8736/gotm/ensem/2011-01-01_2020-01-01_heat/'
+    method = 'kepsilon' # {'kepsilon', 'kpp'}
     MINUTE = 10 # dt
+    OUTMINUTE = 60 # outp ut dt
     n2 = 200 # number of vertical points
     n1 = 31 # run for 31 days regardless of months
-    n1_ = int(n1*24*60/MINUTE) + 1 # depends on output frequency
+    n1_ = int(n1*24*60/OUTMINUTE) + 1 # depends on output frequency
+    nensem = 20 # number of ensemble members
     
-    ylist = [2013,2015,2016] # the years that we ran
-    ENSEM = np.arange(1,21) # tags for ensembles
+    ylist = [2011,2012,2015,2016] # the years that we ran
+    ENSEM = np.arange(1,nensem) # tags for ensembles
     for year in ylist:
         folder = masterdir +  f'out_{method}_dt{MINUTE}_{year}/' # directory e.g. out_kpp_dt60_2011
         for i in ENSEM:
