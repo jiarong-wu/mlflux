@@ -110,7 +110,7 @@ def plot_corr (ax, model, ds, subsample=None):
     ax.legend(fancybox=False, bbox_to_anchor=(0, 1.22), loc='upper left', handletextpad=0.)
 
 ####### Plot residual ########
-def plot_res (ax, model, ds):
+def plot_res (ax, model, ds, weighted=False):
     ''' First evaluate on the whole data set '''
     vd = RealFluxDataset(ds, input_keys=model.config['ikeys'], 
                          output_keys=model.config['okeys'], bulk_keys=model.config['bkeys'])
@@ -122,7 +122,7 @@ def plot_res (ax, model, ds):
     error = Ypred_mean.detach().numpy() - vd.Y.detach().numpy()
     error_norm = error/Ypred_var.detach().numpy()**0.5
     # label='$(\mu_{ANN}(\mathbf{X}) - Obs)/\sigma_{ANN}(\mathbf{X})$'
-    if model.config['WEIGHT']:
+    if weighted:
         ax.hist(error_norm, bins=np.linspace(-4, 4, 80), density=True, weights=vd.W[:,0], label='W res.')
     else:
         ax.hist(error_norm, bins=np.linspace(-4, 4, 80), density=True, 
@@ -137,7 +137,7 @@ def plot_res (ax, model, ds):
     ax.legend(loc='upper left')
     ax.text(2, 0.5, '$\mu_{\hat{\epsilon}} = %.2f$ \n $\sigma_{\hat{\epsilon}} = %.2f$ \n $wd = %.2f$' %(scores[2],scores[3], scores[4]), ha='center', va='center')
     
-    ax.set_xlim([-4,4]); ax.set_ylim([0.0001,1])
+    ax.set_xlim([-3,3]); ax.set_ylim([0.0001,1])
 
 ####### Load model ########
 def open_case (model_dir, model_name):
