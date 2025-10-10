@@ -5,7 +5,8 @@
 *.pyc
 *.dat
 !gotm/ows_papa/*.dat
-*.txt
+*.txt 
+!requirements.txt
 *.pdf
 data/
 others/

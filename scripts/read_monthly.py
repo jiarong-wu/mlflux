@@ -6,9 +6,9 @@ import numpy as np
 
 
 if __name__ == "__main__":
-    masterdir = '/scratch/jw8736/gotm/ensem/2011-01-01_2020-01-01_heat/'
-    method = 'kepsilon' # {'kepsilon', 'kpp'}
-    MINUTE = 10 # dt
+    masterdir = '/scratch/jw8736/gotm/ensem_white/2011-01-01_2020-01-01_heat/'
+    method = 'kpp' # {'kepsilon', 'kpp'}
+    MINUTE = 60 # dt
     OUTMINUTE = 60 # outp ut dt
     n2 = 200 # number of vertical points
     n1 = 31 # run for 31 days regardless of months

@@ -9,7 +9,7 @@
 
 ENSEM=20
 IPATH=/scratch/jw8736/mlflux/gotm/ows_papa/
-OPATH=/scratch/jw8736/gotm/ensem/
+OPATH=/scratch/jw8736/gotm/ensem_white/
 
 # python gen_flux.py --sd=2012-03-21 --ed=2012-05-20 --corrtime=60 --dt=3 --ensem=$ENSEM --flux=heat -i=$IPATH -o=$OPATH
 # python gen_flux.py --sd=2012-03-21 --ed=2012-05-20 --corrtime=15 --dt=3 --ensem=$ENSEM --flux=momentum -i=$IPATH -o=$OPATH
@@ -24,5 +24,5 @@ OPATH=/scratch/jw8736/gotm/ensem/
 # python gen_flux.py --sd=2013-01-11 --ed=2013-03-20 --corrtime=15 --dt=3 --ensem=$ENSEM --flux=momentum -i=$IPATH -o=$OPATH
 
 # Generate the full time 
-python gen_flux.py --sd=2011-01-01 --ed=2020-01-01 --corrtime=60 --dt=1 --ensem=$ENSEM --flux=heat -i=$IPATH -o=$OPATH
+python gen_flux.py --sd=2011-01-01 --ed=2020-01-01 --corrtime=1 --dt=1 --ensem=$ENSEM --flux=heat -i=$IPATH -o=$OPATH
 # python gen_flux.py --sd=2011-01-01 --ed=2020-01-01 --corrtime=15 --dt=3 --ensem=$ENSEM --flux=momentum -i=$IPATH -o=$OPATH
