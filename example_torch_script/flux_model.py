@@ -49,6 +49,8 @@ class ANN_online(nn.Module):
             y_ = self.layers(x_)
         elif self.activation == 'exponential':
             y_ = torch.exp(self.layers(x_))
+        else:
+            raise ValueError('Unknown activation')
         # Output denormalization
         y = y_ * self.Yscale + self.Ymean
         return y
@@ -69,11 +71,11 @@ if __name__ == "__main__":
     # Set the model to evaluation mode
     mean_ann.eval()
     # Example inputs
-    x = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0])
-    x = x.reshape(1, -1)
-    with torch.no_grad():
-        y = mean_ann.forward(x)
-    print(y)
+    # x = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0])
+    # x = x.reshape(1, -1)
+    # with torch.no_grad():
+    #     y = mean_ann.forward(x)
+    # print(y)
 
     # Example dummy inputs (same shape as your test arrays)
     # ux = torch.tensor([4.0, 10.0, -5.0])
@@ -86,8 +88,8 @@ if __name__ == "__main__":
     # print(out)
 
     # Script and save
-    traced_model = torch.jit.trace(mean_ann, x)
-    traced_model.save("LH_mean_model.pt")
+    # traced_model = torch.jit.trace(mean_ann, x)
+    # traced_model.save("LH_mean_model.pt")
 
-    # scripted = torch.jit.script(model)
-    # scripted.save("FluxModel.pt")
+    scripted = torch.jit.script(mean_ann)
+    scripted.save("LH_mean_model_script.pt")
