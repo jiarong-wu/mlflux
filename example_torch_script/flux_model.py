@@ -43,6 +43,7 @@ class ANN_online(nn.Module):
     
     def forward(self, x):
         # Input normalization
+        x = x.to(torch.float32)
         x_ = (x - self.Xmean) / self.Xscale 
         # Forward pass with final activation
         if self.activation == 'no':
