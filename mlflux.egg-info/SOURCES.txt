@@ -1,6 +1,5 @@
 README.md
 setup.py
-mlflux/__init__.py
 mlflux/ann.py
 mlflux/datafunc.py
 mlflux/eval.py
