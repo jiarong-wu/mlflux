@@ -15,8 +15,8 @@ def open_case (model_dir, model_name):
     return model
 
 
-def convert_and_save_model(old_model_file, dir_name):
-    old_model = open_case(old_model_file) # this was a class not good for torch script
+def convert_and_save_model(old_model_dir, old_model_name, dir_name):
+    old_model = open_case(old_model_dir, old_model_name) # this was a class not good for torch script
     os.makedirs(dir_name, exist_ok=True)
 
     # Don't use this that save scale and weights seperately, use the one that saves scale and weights together
@@ -55,11 +55,12 @@ def convert_and_save_model(old_model_file, dir_name):
     torch.save(var_ann.state_dict(), dir_name + "var_weights.pt")
     
 if __name__ == "__main__":
-    source_path = '/glade/work/jiarongw/mlflux/example_python/'
-    target_path = '/glade/u/home/jiarongw/MLFLUX/example_torch_script/'
+    source_path = '/scratch/jw8736/mlflux/example_python/'
+    target_path = '/scratch/jw8736/mlflux/example_torch_script/'
     # Apparently change M/SH/LH
-    old_model_file = source_path + 'SH/', 'sh.p'
-    dir_name = target_path + 'SH/'
-    print("Converting SH model... from \\", old_model_file, " to \\", dir_name)
-    convert_and_save_model(old_model_file, dir_name)
+    old_model_dir = source_path + 'M/'
+    old_model_name = 'm.p'
+    dir_name = target_path + 'M/'
+    print("Converting M model... from ", old_model_dir, " to ", dir_name)
+    convert_and_save_model(old_model_dir, old_model_name, dir_name)
 

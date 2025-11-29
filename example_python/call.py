@@ -3,7 +3,7 @@ from ann import open_case
 import numpy as np
 import torch
 
-abs_path = '/scratch/jw8736/mlflux/example/'
+abs_path = '/scratch/jw8736/mlflux/example_python/'
 
 ''' 
 Inputs: 1D numpy arrays
@@ -11,7 +11,7 @@ Inputs: 1D numpy arrays
     uy: Wind speed in y (m/s)               
     Ta: Air temperature (celcius)
     To: Ocean temperature (celcius)
-    p: Sea surface pressure (pascal), e.g. around 1e+6
+    p: Sea surface pressure (pascal), e.g. around 1e+5
     q: Specific humidity (kg/kg)
     
 Outputs: 
@@ -51,7 +51,8 @@ def ann_flux (ux, uy, To, Ta, p, q):
     U_safe = np.where(U == 0, epsilon, U)
     cos = ux/U_safe
     sin = uy/U_safe                  
-    rh = rhcalc(Ta, p/100. , q)                
+    rh = rhcalc(Ta, p/100. , q) 
+    print(rh)               
     
     # Reshape into sample * features ["U","tsea","tair","rh","p"]
     X = np.hstack([U.reshape(-1,1), To.reshape(-1,1), Ta.reshape(-1,1), 
@@ -79,12 +80,12 @@ def ann_flux (ux, uy, To, Ta, p, q):
     return taux, tauy, Qs, Ql
 
 if __name__ == "__main__":
-    ux = np.array([4, 10, -5]) 
-    uy = np.array([8, 2, 10])
-    q = np.array([0.005, 0.007, 0.006]) 
-    To = np.array([12, 10, 12])
-    Ta = np.array([10, 12, 14])
-    p = np.array([1.01, 1.01, 1.0])*10**5
+    ux = np.array([4]) 
+    uy = np.array([3])
+    q = np.array([0.007]) 
+    To = np.array([16.85])
+    Ta = np.array([11.85])
+    p = np.array([1.01325])*10**5
     taux, tauy, Qs, Ql = ann_flux(ux, uy, To, Ta, p, q)
     print(taux)
     print(tauy)

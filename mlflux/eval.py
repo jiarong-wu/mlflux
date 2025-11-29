@@ -49,7 +49,7 @@ def plot_pred (ax, model, ds, subsample=None):
     ax.legend(fancybox=False)
 
 ''' Instead of visualizing wrt one input, visualizing wrt truth. '''
-def plot_corr (ax, model, ds, subsample=None):
+def plot_corr (ax, model, ds, subsample=None, density=False):
     ''' First evaluate on the whole data set. '''
     vd = RealFluxDataset(ds, input_keys=model.config['ikeys'], 
                          output_keys=model.config['okeys'], bulk_keys=model.config['bkeys'])
@@ -74,38 +74,62 @@ def plot_corr (ax, model, ds, subsample=None):
         ax.set_xticks([-250,-150,-50,0,50])
         ax.set_xlabel(r'Measurement $Q_{L,c} \; [W/m^2]$')
         # ax.set_ylabel(r'Prediction $[W/m^2]$')
-        ax.plot(vd.Y, vd.Bulk, 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
-                label=r'$Q_{L,b}$ ($R^2$=%.2f)' %scores[-1], c=cbulk)
-        ax.plot(vd.Y, Ypred_mean.detach().numpy(), 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
-                label=r'$\mu_{Q_L}$ ($R^2$=%.2f)' %scores[1], c=cann)
+        if density:
+            ax.hexbin(vd.Y.detach().numpy().squeeze(), vd.Bulk.detach().numpy().squeeze(), gridsize=50, 
+                      cmap='Greys', bins='log', mincnt=1, alpha=0.5)
+            ax.hexbin(vd.Y.detach().numpy().squeeze(), Ypred_mean.detach().numpy().squeeze(), gridsize=50, 
+                      cmap='Reds', bins='log', mincnt=1, alpha=0.5)
+        else:
+            ax.plot(vd.Y, vd.Bulk, 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
+                    label=r'$Q_{L,b}$ ($R^2$=%.2f)' %scores[-1], c=cbulk)
+            ax.plot(vd.Y, Ypred_mean.detach().numpy(), 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
+                    label=r'$\mu_{Q_L}$ ($R^2$=%.2f)' %scores[1], c=cann)
     elif model.config['okeys'] == ['hsc']:
         X = vd.X[:,1] - vd.X[:,2]
         ax.set_ylim([-100,50]); ax.set_xlim([-100,50])
         ax.set_yticks([-100,-50,0,50]); ax.set_xticks([-100,-50,0,50])
         ax.set_xlabel('Measurement  $Q_{S,c} \; [W/m^2]$')
         # ax.set_ylabel('Prediction $[W/m^2]$') 
-        ax.plot(vd.Y, vd.Bulk, 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
-                label=r'$Q_{S,b}$ ($R^2$=%.2f)' %scores[-1], c=cbulk)
-        ax.plot(vd.Y, Ypred_mean.detach().numpy(), 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
-                label=r'$\mu_{Q_S}$ ($R^2$=%.2f)' %scores[1], c=cann)
+        if density:
+            ax.hexbin(vd.Y.detach().numpy().squeeze(), vd.Bulk.detach().numpy().squeeze(), gridsize=50, 
+                      cmap='Greys', bins='log', mincnt=1, alpha=0.5)
+            ax.hexbin(vd.Y.detach().numpy().squeeze(), Ypred_mean.detach().numpy().squeeze(), gridsize=50, 
+                      cmap='Reds', bins='log', mincnt=1, alpha=0.5)
+        else:
+            ax.plot(vd.Y, vd.Bulk, 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
+                    label=r'$Q_{S,b}$ ($R^2$=%.2f)' %scores[-1], c=cbulk)
+            ax.plot(vd.Y, Ypred_mean.detach().numpy(), 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
+                    label=r'$\mu_{Q_S}$ ($R^2$=%.2f)' %scores[1], c=cann)
     elif model.config['okeys'] == ['taucx']:
         ax.set_ylim([0,0.6]); ax.set_xlim([0,0.6])
         ax.set_xticks([0,0.2,0.4,0.6]); ax.set_yticks([0,0.2,0.4,0.6])
         ax.set_xlabel(r'Measurement $\tau_{x,c} \; [N/m^2]$')
         # ax.set_ylabel(r'Prediction $[N/m^2]$')
-        ax.plot(vd.Y, vd.Bulk, 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
-                label=r'$\tau_{x,b}$ ($R^2$=%.2f)' %scores[-1], c=cbulk)
-        ax.plot(vd.Y, Ypred_mean.detach().numpy(), 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
-                label=r'$\mu_{\tau_x}$ ($R^2$=%.2f)' %scores[1], c=cann)
+        if density: 
+            ax.hexbin(vd.Y.detach().numpy().squeeze(), vd.Bulk.detach().numpy().squeeze(), gridsize=50, 
+                      cmap='Greys', bins='log', mincnt=1, alpha=0.5)
+            ax.hexbin(vd.Y.detach().numpy().squeeze(), Ypred_mean.detach().numpy().squeeze(), gridsize=50, 
+                      cmap='Reds', bins='log', mincnt=1, alpha=0.5)
+        else:
+            ax.plot(vd.Y, vd.Bulk, 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
+                    label=r'$\tau_{x,b}$ ($R^2$=%.2f)' %scores[-1], c=cbulk)
+            ax.plot(vd.Y, Ypred_mean.detach().numpy(), 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
+                    label=r'$\mu_{\tau_x}$ ($R^2$=%.2f)' %scores[1], c=cann)
     elif model.config['okeys'] == ['taucy']:
         ax.set_ylim([-0.1,0.1]); ax.set_xlim([-0.1,0.1])
         ax.set_xlabel(r'Measurement $\tau_{y,c} \; [N/m^2]$')
-        # ax.set_ylabel(r'Prediction $[N/m^2]$')    
-        ax.plot(vd.Y, vd.Bulk, 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
-                label=r'$\tau_{y,b}$ (R2=%.2f)' %scores[-1], c=cbulk)
-        ax.plot(vd.Y, Ypred_mean.detach().numpy(), 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
-                label=r'$\mu_{\tau_y}$ (R2=%.2f)' %scores[1], c=cann)
-           
+        # ax.set_ylabel(r'Prediction $[N/m^2]$')  
+        if density:
+            ax.hexbin(vd.Y.detach().numpy().squeeze(), vd.Bulk.detach().numpy().squeeze(), gridsize=50, 
+                      cmap='Greys', bins='log', mincnt=1, alpha=0.5)
+            ax.hexbin(vd.Y.detach().numpy().squeeze(), Ypred_mean.detach().numpy().squeeze(), gridsize=50, 
+                      cmap='Reds', bins='log', mincnt=1, alpha=0.5)
+        else:  
+            ax.plot(vd.Y, vd.Bulk, 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
+                    label=r'$\tau_{y,b}$ (R2=%.2f)' %scores[-1], c=cbulk)
+            ax.plot(vd.Y, Ypred_mean.detach().numpy(), 'o', mfc="None", markeredgewidth=0.5, markersize=4, 
+                    label=r'$\mu_{\tau_y}$ (R2=%.2f)' %scores[1], c=cann)
+            
     ax.plot(np.arange(-1000,1000), np.arange(-1000,1000), lw=0.5, ls='--', c='gray')
     ax.legend(fancybox=False, bbox_to_anchor=(0, 1.22), loc='upper left', handletextpad=0.)
 
@@ -246,6 +270,7 @@ def evaluate_over_splits_alter (model, ds, WEIGHT=True):
     split_ensem = [split1, split2, split3, split4]
     nn_mse_splits = []; bulk_mse_splits = []
     nn_r2_splits = []; bulk_r2_splits = []
+    nn_bias_splits = []; bulk_bias_splits = []
 
     for i in range(len(split_ensem)):
         training_ds, validating_ds, testing_ds = data_split_psd(ds, split=split_ensem[i], 
@@ -256,14 +281,22 @@ def evaluate_over_splits_alter (model, ds, WEIGHT=True):
         if WEIGHT:
             ann_mse, ann_r2 = mse_r2_weighted(Ypred_mean.detach().numpy(), vd.Y.detach().numpy(), vd.W)
             bulk_mse, bulk_r2 = mse_r2_weighted(vd.Bulk.detach().numpy(), vd.Y.detach().numpy(), vd.W)
+            ann_bias = np.average(Ypred_mean.detach().numpy()-vd.Y.detach().numpy(), weights=vd.W, axis=0).flatten()
+            bulk_bias = np.average(vd.Bulk.detach().numpy()-vd.Y.detach().numpy(), weights=vd.W, axis=0).flatten()
         else:
             ann_mse, ann_r2 = mse_r2_weighted(Ypred_mean.detach().numpy(), vd.Y.detach().numpy(), vd.W/vd.W)
-            bulk_mse, bulk_r2 = mse_r2_weighted(vd.Bulk.detach().numpy(), vd.Y.detach().numpy(), vd.W/vd.W)            
+            bulk_mse, bulk_r2 = mse_r2_weighted(vd.Bulk.detach().numpy(), vd.Y.detach().numpy(), vd.W/vd.W)   
+            ann_bias = np.average(Ypred_mean.detach().numpy()-vd.Y.detach().numpy(), weights=vd.W/vd.W, axis=0).flatten()    
+            bulk_bias = np.average(vd.Bulk.detach().numpy()-vd.Y.detach().numpy(), weights=vd.W/vd.W, axis=0).flatten()       
         nn_mse_splits.append(ann_mse); bulk_mse_splits.append(bulk_mse)
         nn_r2_splits.append(ann_r2); bulk_r2_splits.append(bulk_r2) 
+        nn_bias_splits.append(ann_bias); bulk_bias_splits.append(bulk_bias)
+        # print(nn_r2_splits[0].shape)
+        # print(nn_bias_splits[0].shape)
         
     return (np.array(nn_r2_splits).squeeze(), np.array(bulk_r2_splits).squeeze(), 
-            np.array(nn_mse_splits).squeeze(), np.array(bulk_mse_splits).squeeze())
+            np.array(nn_mse_splits).squeeze(), np.array(bulk_mse_splits).squeeze(),
+            np.array(nn_bias_splits).squeeze(), np.array(bulk_bias_splits).squeeze())
 
 def eval_bias_over_splits_alter (model, ds, WEIGHT=True):
     split1 = [[69, 83, 78, 87, 72, 71, 68, 67, 73], [77], [77]] # metz
