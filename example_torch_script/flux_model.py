@@ -99,7 +99,7 @@ class ANN_online(nn.Module):
     
 if __name__ == "__main__":
     # Hard coded config of the model (mean)
-    dir_name = model_path + 'LH/'
+    dir_name = model_path + 'SH/'
     n_in = 5
     n_out = 1
     hidden_channels = [32, 16] 
@@ -127,7 +127,7 @@ if __name__ == "__main__":
 
     # Script and save
     traced_model = torch.jit.trace(mean_ann, x)
-    traced_model.save("LH_mean_model_trace.pt")
+    traced_model.save("SH_mean_model_trace.pt")
 
     # scripted = torch.jit.script(mean_ann)
     # scripted.save("LH_mean_model_script.pt")

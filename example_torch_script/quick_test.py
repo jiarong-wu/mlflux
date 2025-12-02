@@ -1,5 +1,5 @@
 import torch
-model = torch.jit.load("LH_mean_model_script.pt", map_location="cpu")
+model = torch.jit.load("SH_mean_model_script.pt", map_location="cpu")
 model.eval()
 
 # create a placeholder input shaped like what Fortran sends

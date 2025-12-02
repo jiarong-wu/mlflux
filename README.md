@@ -75,3 +75,10 @@ Functions to compute bulk in `mlflux/datafunc.py` are dependent on the [aerobulk
 Codes that I stole from other people. 
 
 
+## Calling as python code or as torch script
+`example_python` shows a way to call the ANNs as python code. Weights and neural network class are saved as a pickle file. Note ideal for standalone calling. Used in the NEMO implementation.
+
+`example_torch_script` shows another way to call the ANNs as torch script. Do not require a conda environment and fully portable. Use `conver_pickle.py` to convert pickle into weights and normalizing constants (this step for now somehow only works on Greene where mlflux was originally installed). Then use `flux_model.py` to construct the torch script. Used in the CESM implementation with FTorch. For more CESM related code, see [this repo](https://github.com/jiarong-wu/MLFLUX_cesm).
+
+
+
